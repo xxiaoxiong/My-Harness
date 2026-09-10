@@ -4,34 +4,6 @@
 
 当前进度：**HARN-01 — Model Adapter**。
 
-## 按阶段独立学习
-
-仓库根目录始终保存当前开发版本。每完成一个阶段，都会把当时完整、可运行的项目复制到独立快照目录；旧快照不再随新阶段修改。
-
-| 阶段 | 独立代码 | 学习主题 |
-| --- | --- | --- |
-| HARN-00 | [`stages/HARN-00/`](stages/HARN-00/) | 最小项目骨架、配置、日志、基础类型 |
-| HARN-01 | [`stages/HARN-01/`](stages/HARN-01/) | Model Adapter、OpenAI-compatible provider、调用观测 |
-
-例如，单独学习 HARN-01 时：
-
-```powershell
-cd stages/HARN-01
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e .
-python -m unittest discover -s tests -v
-python -m examples.harn_01_model_adapter
-```
-
-下一阶段将在根目录基于当前版本做最小演进；完成并验证、提交根目录代码后，运行以下命令生成新快照：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapshot.ps1 HARN-02
-```
-
-完整约定见 [`docs/stage_workflow.md`](docs/stage_workflow.md)。
-
 本阶段只包含：
 
 - 模块化 Python 包结构；
