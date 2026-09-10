@@ -8,7 +8,7 @@ version = "0.0.0"
 description = "A progressively built Agent Harness learning project."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["httpx>=0.27,<1"]
 
 [tool.setuptools.packages.find]
 include = ["harness*"]

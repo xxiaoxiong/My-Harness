@@ -1,7 +1,7 @@
-"""Educational Agent Harness package.
+"""Educational Agent Harness package through the completed HARN-01 stage.
 
-HARN-00 intentionally exposes only foundational configuration, logging, and
-shared types. Agent behavior is introduced in later stages.
+The public API currently contains foundational services and a model adapter;
+agent behavior is introduced in later stages.
 """
 
 from harness.core import (
@@ -12,13 +12,28 @@ from harness.core import (
     get_logger,
     load_config,
 )
+from harness.model import (
+    MessageRole,
+    ModelMessage,
+    ModelProvider,
+    ModelRequest,
+    ModelResponse,
+    OpenAICompatibleProvider,
+    TokenUsage,
+)
 
 __all__ = [
     "Environment",
     "HarnessConfig",
     "LogLevel",
+    "MessageRole",
+    "ModelMessage",
+    "ModelProvider",
+    "ModelRequest",
+    "ModelResponse",
+    "OpenAICompatibleProvider",
+    "TokenUsage",
     "configure_logging",
     "get_logger",
     "load_config",
 ]
-
