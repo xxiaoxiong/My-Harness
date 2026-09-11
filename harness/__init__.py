@@ -1,7 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-04 stage.
+"""Educational Agent Harness package through the completed HARN-05 stage.
 
-The public API now separates tool definitions, implementations, discovery,
-and execution.
+The public API now tracks each tool-agent run as state plus trajectory.
 """
 
 from harness.core import (
@@ -20,6 +19,12 @@ from harness.model import (
     ModelResponse,
     OpenAICompatibleProvider,
     TokenUsage,
+)
+from harness.state import (
+    AgentState,
+    AgentStatus,
+    TrajectoryEvent,
+    TrajectoryEventKind,
 )
 from harness.runtime import (
     AgentDecision,
@@ -52,6 +57,8 @@ __all__ = [
     "AgentLoop",
     "AgentRunResult",
     "AgentRunStatus",
+    "AgentState",
+    "AgentStatus",
     "CALCULATOR_NAME",
     "CalculatorError",
     "CalculatorTool",
@@ -78,6 +85,8 @@ __all__ = [
     "ToolRegistry",
     "ToolResult",
     "ToolSchema",
+    "TrajectoryEvent",
+    "TrajectoryEventKind",
     "calculate",
     "configure_logging",
     "get_logger",

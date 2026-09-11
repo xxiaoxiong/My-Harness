@@ -7,20 +7,39 @@ from dataclasses import dataclass
 from typing import Any
 
 from harness.model import MessageRole, ModelMessage, ModelProvider, ModelRequest
-from harness.runtime.agent_loop import AgentRunStatus
+from harness.state import AgentState, AgentStatus
 from harness.tools import ToolCall, ToolExecutor, ToolResult
 
 
 @dataclass(frozen=True, slots=True)
 class ToolAgentRunResult:
-    """Outcome of a bounded tool-agent run."""
+    """Expose the completed state with convenient compatibility properties."""
 
-    goal: str
-    status: AgentRunStatus
-    steps_executed: int
-    tool_calls_executed: int
-    final_answer: str | None
-    last_tool_result: ToolResult | None
+    state: AgentState
+
+    @property
+    def goal(self) -> str:
+        return self.state.goal
+
+    @property
+    def status(self) -> AgentStatus:
+        return self.state.status
+
+    @property
+    def steps_executed(self) -> int:
+        return self.state.current_step
+
+    @property
+    def tool_calls_executed(self) -> int:
+        return len(self.state.tool_calls)
+
+    @property
+    def final_answer(self) -> str | None:
+        return self.state.final_answer
+
+    @property
+    def last_tool_result(self) -> ToolResult | None:
+        return self.state.tool_results[-1] if self.state.tool_results else None
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,7 +85,12 @@ class ToolAgentLoop:
         self._tool_executor = tool_executor
         self._instruction = _build_instruction(tool_executor)
 
-    async def run(self, goal: str) -> ToolAgentRunResult:
+    async def run(
+        self,
+        goal: str,
+        *,
+        task_id: str | None = None,
+    ) -> ToolAgentRunResult:
         """Run until the model answers or the model-call limit is reached."""
 
         if not isinstance(goal, str):
@@ -75,53 +99,43 @@ class ToolAgentLoop:
         if not normalized_goal:
             raise ValueError("goal must not be empty")
 
-        messages = [
-            ModelMessage(MessageRole.DEVELOPER, self._instruction),
-            ModelMessage(MessageRole.USER, f"Goal:\n{normalized_goal}"),
-        ]
-        tool_calls_executed = 0
-        last_tool_result: ToolResult | None = None
+        state = AgentState.start(
+            goal=normalized_goal,
+            task_id=task_id,
+            messages=[
+                ModelMessage(MessageRole.DEVELOPER, self._instruction),
+                ModelMessage(MessageRole.USER, f"Goal:\n{normalized_goal}"),
+            ],
+        )
 
-        for step in range(1, self._max_steps + 1):
+        for _ in range(self._max_steps):
+            state.begin_model_step()
             response = await self._provider.generate(
-                ModelRequest(model=self._model, messages=tuple(messages))
+                ModelRequest(model=self._model, messages=tuple(state.messages))
             )
+            state.record_model_call(
+                response,
+                input_message_count=len(state.messages),
+            )
+            state.append_message(response.message)
             action = _parse_action(response.message.content)
 
             if isinstance(action, _FinalAnswer):
-                return ToolAgentRunResult(
-                    goal=normalized_goal,
-                    status=AgentRunStatus.FINISHED,
-                    steps_executed=step,
-                    tool_calls_executed=tool_calls_executed,
-                    final_answer=action.answer,
-                    last_tool_result=last_tool_result,
-                )
+                state.finish(action.answer)
+                return ToolAgentRunResult(state=state)
 
-            last_tool_result = await self._tool_executor.execute(action)
-            tool_calls_executed += 1
-            if step < self._max_steps:
-                messages.extend(
-                    (
-                        ModelMessage(
-                            MessageRole.ASSISTANT,
-                            response.message.content,
-                        ),
-                        ModelMessage(
-                            MessageRole.USER,
-                            _serialize_tool_result(last_tool_result),
-                        ),
-                    )
+            state.record_tool_call(action)
+            tool_result = await self._tool_executor.execute(action)
+            state.record_tool_result(tool_result)
+            state.append_message(
+                ModelMessage(
+                    MessageRole.USER,
+                    _serialize_tool_result(tool_result),
                 )
+            )
 
-        return ToolAgentRunResult(
-            goal=normalized_goal,
-            status=AgentRunStatus.MAX_STEPS_REACHED,
-            steps_executed=self._max_steps,
-            tool_calls_executed=tool_calls_executed,
-            final_answer=None,
-            last_tool_result=last_tool_result,
-        )
+        state.reach_max_steps()
+        return ToolAgentRunResult(state=state)
 
 
 def _parse_action(output: str) -> ToolCall | _FinalAnswer:

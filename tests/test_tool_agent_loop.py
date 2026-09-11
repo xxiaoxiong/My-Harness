@@ -8,7 +8,8 @@ from harness.model import (
     ModelRequest,
     ModelResponse,
 )
-from harness.runtime import AgentRunStatus, InvalidAgentAction, ToolAgentLoop
+from harness.runtime import InvalidAgentAction, ToolAgentLoop
+from harness.state import AgentStatus, TrajectoryEventKind
 from harness.tools import CalculatorTool, ToolExecutor, ToolRegistry
 
 
@@ -61,16 +62,31 @@ class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
         )
         loop = self._loop(provider, max_steps=3)
 
-        result = await loop.run("Calculate 2 + 3 * 4")
+        result = await loop.run("Calculate 2 + 3 * 4", task_id="task-calculate")
 
-        self.assertEqual(result.status, AgentRunStatus.FINISHED)
+        self.assertEqual(result.status, AgentStatus.FINISHED)
         self.assertEqual(result.steps_executed, 2)
         self.assertEqual(result.tool_calls_executed, 1)
         self.assertEqual(result.final_answer, "The result is 14.")
         self.assertIsNotNone(result.last_tool_result)
         self.assertEqual(result.last_tool_result.result, 14)  # type: ignore[union-attr]
+        self.assertEqual(result.state.task_id, "task-calculate")
+        self.assertEqual(len(result.state.messages), 5)
+        self.assertEqual(result.state.tool_calls[0].name, "calculator")
+        self.assertEqual(result.state.tool_results[0].result, 14)
+        self.assertEqual(
+            [event.kind for event in result.state.trajectory],
+            [
+                TrajectoryEventKind.MODEL_CALL,
+                TrajectoryEventKind.TOOL_CALL,
+                TrajectoryEventKind.TOOL_RESULT,
+                TrajectoryEventKind.MODEL_CALL,
+                TrajectoryEventKind.FINAL_ANSWER,
+            ],
+        )
 
         second_request = provider.requests[1]
+        self.assertEqual(len(provider.requests[0].messages), 2)
         self.assertIn('"name":"calculator"', provider.requests[0].messages[0].content)
         self.assertIn('"parameters"', provider.requests[0].messages[0].content)
         self.assertEqual(len(second_request.messages), 4)
@@ -105,7 +121,7 @@ class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
         observation = json.loads(provider.requests[1].messages[-1].content)
         self.assertEqual(observation["error"], "division by zero")
         self.assertIsNone(observation["result"])
-        self.assertEqual(result.status, AgentRunStatus.FINISHED)
+        self.assertEqual(result.status, AgentStatus.FINISHED)
 
     async def test_max_steps_stops_after_a_tool_call(self) -> None:
         provider = JsonSequenceProvider(
@@ -119,11 +135,15 @@ class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
 
         result = await loop.run("Calculate 40 + 2")
 
-        self.assertEqual(result.status, AgentRunStatus.MAX_STEPS_REACHED)
+        self.assertEqual(result.status, AgentStatus.MAX_STEPS_REACHED)
         self.assertEqual(result.steps_executed, 1)
         self.assertEqual(result.tool_calls_executed, 1)
         self.assertIsNone(result.final_answer)
         self.assertEqual(result.last_tool_result.result, 42)  # type: ignore[union-attr]
+        self.assertEqual(
+            result.state.trajectory[-1].kind,
+            TrajectoryEventKind.MAX_STEPS_REACHED,
+        )
 
     async def test_invalid_json_action_is_rejected_before_tool_execution(self) -> None:
         loop = self._loop(JsonSequenceProvider("calculator(2 + 2)"), max_steps=2)
