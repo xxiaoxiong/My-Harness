@@ -16,23 +16,22 @@
 | HARN-03 | [`stages/HARN-03/`](stages/HARN-03/) | calculator Tool、执行反馈、Result/Error 观察 |
 | HARN-04 | [`stages/HARN-04/`](stages/HARN-04/) | Tool Schema、实现、Registry 与 Executor 分层 |
 | HARN-05 | [`stages/HARN-05/`](stages/HARN-05/) | Agent State、状态转移与完整 Trajectory |
-| HARN-06 | [`stages/HARN-06/`](stages/HARN-06/) | ContextBuilder、上下文组成与字符预算 |
 
-例如，单独学习 HARN-06 时：
+例如，单独学习 HARN-05 时：
 
 ```powershell
-cd stages/HARN-06
+cd stages/HARN-05
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e .
 python -m unittest discover -s tests -v
-python -m examples.harn_06_context_engine
+python -m examples.harn_05_agent_state
 ```
 
 下一阶段将在根目录基于当前版本做最小演进；完成并验证、提交根目录代码后，运行以下命令生成新快照：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapshot.ps1 HARN-07
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapshot.ps1 HARN-06
 ```
 
 完整约定见 [`docs/stage_workflow.md`](docs/stage_workflow.md)。
