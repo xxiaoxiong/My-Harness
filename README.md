@@ -2,7 +2,7 @@
 
 这是一个按照 `docs/agent_harness_progressive_learning_roadmap.md` 逐步构建 Agent Harness 的学习项目。
 
-当前进度：**HARN-02 — 最小 Agent Loop**。
+当前进度：**HARN-03 — 第一个 Tool**。
 
 ## 按阶段独立学习
 
@@ -44,9 +44,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapsho
 - request、response、token usage、latency 和 finish reason 观测；
 - 由 `CONTINUE` / `FINISH` 驱动的最小 Agent Loop；
 - 防止无限循环的 `max_steps` 硬限制；
-- 明确区分正常完成和达到最大步数的运行结果。
+- 明确区分正常完成和达到最大步数的运行结果；
+- 硬编码的安全 `calculator` Tool；
+- `Tool Call → Tool Result → Final Answer` Feedback Loop；
+- Tool 的 `name`、`arguments`、`result` 和 `error` 数据边界。
 
-本阶段还没有 Tool、正式 Agent State 或上下文管理；这些能力会在后续阶段按路线图逐步加入。
+本阶段还没有 Tool Registry、正式 Agent State 或上下文管理；这些能力会在后续阶段按路线图逐步加入。
 
 ## 运行 Demo
 
@@ -76,6 +79,7 @@ python -m pip install -e .
 python -m examples.harn_00_project_skeleton
 python -m examples.harn_01_model_adapter
 python -m examples.harn_02_minimal_agent_loop
+python -m examples.harn_03_tool_agent
 ```
 
 可通过环境变量观察配置生效：
@@ -98,4 +102,4 @@ python -m examples.harn_00_project_skeleton
 python -m unittest discover -s tests -v
 ```
 
-各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-02 的完整调用链和设计取舍见 [`docs/stage_notes/HARN-02.md`](docs/stage_notes/HARN-02.md)。
+各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-03 的完整 Feedback Loop 和设计取舍见 [`docs/stage_notes/HARN-03.md`](docs/stage_notes/HARN-03.md)。

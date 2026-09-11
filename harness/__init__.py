@@ -1,7 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-02 stage.
+"""Educational Agent Harness package through the completed HARN-03 stage.
 
-The public API contains foundational services, a model adapter, and the first
-bounded agent loop.
+The public API now includes the first hard-coded tool feedback loop.
 """
 
 from harness.core import (
@@ -26,7 +25,18 @@ from harness.runtime import (
     AgentLoop,
     AgentRunResult,
     AgentRunStatus,
+    InvalidAgentAction,
     InvalidAgentDecision,
+    ToolAgentLoop,
+    ToolAgentRunResult,
+)
+from harness.tools import (
+    CALCULATOR_NAME,
+    CalculatorError,
+    ToolCall,
+    ToolResult,
+    calculate,
+    execute_tool_call,
 )
 
 __all__ = [
@@ -34,8 +44,12 @@ __all__ = [
     "AgentLoop",
     "AgentRunResult",
     "AgentRunStatus",
+    "CALCULATOR_NAME",
+    "CalculatorError",
     "Environment",
     "HarnessConfig",
+    "InvalidAgentAction",
+    "InvalidAgentDecision",
     "LogLevel",
     "MessageRole",
     "ModelMessage",
@@ -44,8 +58,13 @@ __all__ = [
     "ModelResponse",
     "OpenAICompatibleProvider",
     "TokenUsage",
+    "ToolAgentLoop",
+    "ToolAgentRunResult",
+    "ToolCall",
+    "ToolResult",
+    "calculate",
     "configure_logging",
+    "execute_tool_call",
     "get_logger",
-    "InvalidAgentDecision",
     "load_config",
 ]
