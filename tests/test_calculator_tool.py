@@ -2,9 +2,8 @@ import unittest
 
 from harness.tools import (
     CalculatorError,
-    ToolCall,
+    CalculatorTool,
     calculate,
-    execute_tool_call,
 )
 
 
@@ -25,31 +24,21 @@ class CalculatorTests(unittest.TestCase):
             calculate("1 / 0")
 
 
-class HardcodedExecutorTests(unittest.TestCase):
-    def test_preserves_name_arguments_and_successful_result(self) -> None:
-        call = ToolCall("calculator", {"expression": "10 + 5"})
+class CalculatorToolTests(unittest.IsolatedAsyncioTestCase):
+    async def test_schema_describes_the_implementation_arguments(self) -> None:
+        tool = CalculatorTool()
 
-        result = execute_tool_call(call)
+        self.assertEqual(tool.schema.name, "calculator")
+        self.assertEqual(tool.schema.parameters["required"], ["expression"])
 
-        self.assertEqual(result.name, "calculator")
-        self.assertEqual(result.arguments, {"expression": "10 + 5"})
-        self.assertEqual(result.result, 15)
-        self.assertIsNone(result.error)
-        self.assertTrue(result.succeeded)
+    async def test_execute_validates_arguments_then_calculates(self) -> None:
+        tool = CalculatorTool()
 
-    def test_converts_invalid_arguments_into_an_observable_error(self) -> None:
-        result = execute_tool_call(ToolCall("calculator", {"value": 2}))
-
-        self.assertIsNone(result.result)
-        self.assertIn("expression", result.error or "")
-        self.assertFalse(result.succeeded)
-
-    def test_unknown_tool_is_an_error_without_a_registry(self) -> None:
-        result = execute_tool_call(ToolCall("weather", {"city": "Shanghai"}))
-
-        self.assertEqual(result.name, "weather")
-        self.assertEqual(result.arguments, {"city": "Shanghai"})
-        self.assertEqual(result.error, "unsupported tool: weather")
+        self.assertEqual(await tool.execute({"expression": "10 + 5"}), 15)
+        with self.assertRaisesRegex(CalculatorError, "only 'expression'"):
+            await tool.execute({"value": 2})
+        with self.assertRaisesRegex(CalculatorError, "must be a string"):
+            await tool.execute({"expression": 2})
 
 
 if __name__ == "__main__":

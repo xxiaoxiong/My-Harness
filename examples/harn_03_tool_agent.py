@@ -4,12 +4,15 @@ import asyncio
 import json
 
 from harness import (
+    CalculatorTool,
     MessageRole,
     ModelMessage,
     ModelProvider,
     ModelRequest,
     ModelResponse,
     ToolAgentLoop,
+    ToolExecutor,
+    ToolRegistry,
 )
 
 
@@ -58,10 +61,14 @@ async def main() -> None:
     goal = "计算 (12 + 8) * 3"
     print(f"User -> {goal}")
 
+    registry = ToolRegistry()
+    registry.register(CalculatorTool())
+
     loop = ToolAgentLoop(
         DemoToolCallingProvider(),
         model="demo-model",
         max_steps=3,
+        tool_executor=ToolExecutor(registry),
     )
     result = await loop.run(goal)
 

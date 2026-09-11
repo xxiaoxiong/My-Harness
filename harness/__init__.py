@@ -1,6 +1,7 @@
-"""Educational Agent Harness package through the completed HARN-03 stage.
+"""Educational Agent Harness package through the completed HARN-04 stage.
 
-The public API now includes the first hard-coded tool feedback loop.
+The public API now separates tool definitions, implementations, discovery,
+and execution.
 """
 
 from harness.core import (
@@ -33,10 +34,17 @@ from harness.runtime import (
 from harness.tools import (
     CALCULATOR_NAME,
     CalculatorError,
+    CalculatorTool,
+    DuplicateToolError,
+    Tool,
     ToolCall,
+    ToolError,
+    ToolExecutor,
+    ToolNotFoundError,
+    ToolRegistry,
     ToolResult,
+    ToolSchema,
     calculate,
-    execute_tool_call,
 )
 
 __all__ = [
@@ -46,6 +54,8 @@ __all__ = [
     "AgentRunStatus",
     "CALCULATOR_NAME",
     "CalculatorError",
+    "CalculatorTool",
+    "DuplicateToolError",
     "Environment",
     "HarnessConfig",
     "InvalidAgentAction",
@@ -58,13 +68,18 @@ __all__ = [
     "ModelResponse",
     "OpenAICompatibleProvider",
     "TokenUsage",
+    "Tool",
     "ToolAgentLoop",
     "ToolAgentRunResult",
     "ToolCall",
+    "ToolError",
+    "ToolExecutor",
+    "ToolNotFoundError",
+    "ToolRegistry",
     "ToolResult",
+    "ToolSchema",
     "calculate",
     "configure_logging",
-    "execute_tool_call",
     "get_logger",
     "load_config",
 ]

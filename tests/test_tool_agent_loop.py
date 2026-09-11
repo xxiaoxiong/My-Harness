@@ -9,6 +9,7 @@ from harness.model import (
     ModelResponse,
 )
 from harness.runtime import AgentRunStatus, InvalidAgentAction, ToolAgentLoop
+from harness.tools import CalculatorTool, ToolExecutor, ToolRegistry
 
 
 class JsonSequenceProvider(ModelProvider):
@@ -34,6 +35,21 @@ class JsonSequenceProvider(ModelProvider):
 
 
 class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
+    def _loop(
+        self,
+        provider: ModelProvider,
+        *,
+        max_steps: int,
+    ) -> ToolAgentLoop:
+        registry = ToolRegistry()
+        registry.register(CalculatorTool())
+        return ToolAgentLoop(
+            provider,
+            model="demo-model",
+            max_steps=max_steps,
+            tool_executor=ToolExecutor(registry),
+        )
+
     async def test_tool_result_is_observed_before_the_final_answer(self) -> None:
         provider = JsonSequenceProvider(
             {
@@ -43,7 +59,7 @@ class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
             },
             {"type": "final_answer", "answer": "The result is 14."},
         )
-        loop = ToolAgentLoop(provider, model="demo-model", max_steps=3)
+        loop = self._loop(provider, max_steps=3)
 
         result = await loop.run("Calculate 2 + 3 * 4")
 
@@ -55,6 +71,8 @@ class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.last_tool_result.result, 14)  # type: ignore[union-attr]
 
         second_request = provider.requests[1]
+        self.assertIn('"name":"calculator"', provider.requests[0].messages[0].content)
+        self.assertIn('"parameters"', provider.requests[0].messages[0].content)
         self.assertEqual(len(second_request.messages), 4)
         observation = json.loads(second_request.messages[-1].content)
         self.assertEqual(
@@ -80,7 +98,7 @@ class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
                 "answer": "The expression is undefined because it divides by zero.",
             },
         )
-        loop = ToolAgentLoop(provider, model="demo-model", max_steps=3)
+        loop = self._loop(provider, max_steps=3)
 
         result = await loop.run("Calculate 1 / 0")
 
@@ -97,7 +115,7 @@ class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
                 "arguments": {"expression": "40 + 2"},
             }
         )
-        loop = ToolAgentLoop(provider, model="demo-model", max_steps=1)
+        loop = self._loop(provider, max_steps=1)
 
         result = await loop.run("Calculate 40 + 2")
 
@@ -108,17 +126,13 @@ class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.last_tool_result.result, 42)  # type: ignore[union-attr]
 
     async def test_invalid_json_action_is_rejected_before_tool_execution(self) -> None:
-        loop = ToolAgentLoop(
-            JsonSequenceProvider("calculator(2 + 2)"),
-            model="demo-model",
-            max_steps=2,
-        )
+        loop = self._loop(JsonSequenceProvider("calculator(2 + 2)"), max_steps=2)
 
         with self.assertRaisesRegex(InvalidAgentAction, "valid JSON"):
             await loop.run("Calculate 2 + 2")
 
     async def test_action_schema_rejects_extra_fields(self) -> None:
-        loop = ToolAgentLoop(
+        loop = self._loop(
             JsonSequenceProvider(
                 {
                     "type": "tool_call",
@@ -127,7 +141,6 @@ class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
                     "surprise": True,
                 }
             ),
-            model="demo-model",
             max_steps=2,
         )
 

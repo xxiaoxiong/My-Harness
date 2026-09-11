@@ -5,7 +5,10 @@ from __future__ import annotations
 import ast
 import math
 import operator
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+
+from harness.core.types import JsonValue
+from harness.tools.base import Tool, ToolError, ToolSchema
 
 CALCULATOR_NAME = "calculator"
 MAX_EXPRESSION_CHARS = 200
@@ -27,8 +30,44 @@ _UNARY_OPERATORS: dict[type[ast.unaryop], UnaryOperator] = {
 }
 
 
-class CalculatorError(ValueError):
+class CalculatorError(ToolError):
     """Raised when an expression is invalid or cannot be calculated."""
+
+
+class CalculatorTool(Tool):
+    """Tool implementation that validates arguments before safe evaluation."""
+
+    _SCHEMA = ToolSchema(
+        name=CALCULATOR_NAME,
+        description="Evaluate an arithmetic expression using +, -, *, /, and parentheses.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "expression": {
+                    "type": "string",
+                    "description": "The arithmetic expression to evaluate.",
+                }
+            },
+            "required": ["expression"],
+            "additionalProperties": False,
+        },
+    )
+
+    @property
+    def schema(self) -> ToolSchema:
+        return self._SCHEMA
+
+    async def execute(self, arguments: Mapping[str, JsonValue]) -> JsonValue:
+        if set(arguments) != {"expression"}:
+            raise CalculatorError(
+                "calculator arguments must contain only 'expression'"
+            )
+        expression = arguments["expression"]
+        if not isinstance(expression, str):
+            raise CalculatorError(
+                "calculator argument 'expression' must be a string"
+            )
+        return calculate(expression)
 
 
 def calculate(expression: str) -> Number:

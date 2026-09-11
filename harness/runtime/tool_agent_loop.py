@@ -1,4 +1,4 @@
-"""Reason-act-observe loop using the hard-coded HARN-03 calculator."""
+"""Reason-act-observe loop using registry-backed tool execution."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 
 from harness.model import MessageRole, ModelMessage, ModelProvider, ModelRequest
 from harness.runtime.agent_loop import AgentRunStatus
-from harness.tools import ToolCall, ToolResult, execute_tool_call
+from harness.tools import ToolCall, ToolExecutor, ToolResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,16 +38,7 @@ class InvalidAgentAction(ValueError):
 
 
 class ToolAgentLoop:
-    """Let the model call a calculator and observe the result before answering."""
-
-    _INSTRUCTION = """You are controlled by a calculator agent loop.
-Reply with one JSON object and no surrounding prose.
-To call the only available tool:
-{"type":"tool_call","name":"calculator","arguments":{"expression":"2 + 2"}}
-When the goal is complete:
-{"type":"final_answer","answer":"your answer"}
-Use the calculator for arithmetic. A tool result, including any error, will be
-returned as the next user message."""
+    """Let a model call registered tools without knowing their implementations."""
 
     def __init__(
         self,
@@ -55,6 +46,7 @@ returned as the next user message."""
         *,
         model: str,
         max_steps: int,
+        tool_executor: ToolExecutor,
     ) -> None:
         if not isinstance(model, str):
             raise TypeError("model must be a string")
@@ -65,10 +57,14 @@ returned as the next user message."""
             raise TypeError("max_steps must be an integer")
         if max_steps <= 0:
             raise ValueError("max_steps must be greater than zero")
+        if not isinstance(tool_executor, ToolExecutor):
+            raise TypeError("tool_executor must be a ToolExecutor")
 
         self._provider = provider
         self._model = normalized_model
         self._max_steps = max_steps
+        self._tool_executor = tool_executor
+        self._instruction = _build_instruction(tool_executor)
 
     async def run(self, goal: str) -> ToolAgentRunResult:
         """Run until the model answers or the model-call limit is reached."""
@@ -80,7 +76,7 @@ returned as the next user message."""
             raise ValueError("goal must not be empty")
 
         messages = [
-            ModelMessage(MessageRole.DEVELOPER, self._INSTRUCTION),
+            ModelMessage(MessageRole.DEVELOPER, self._instruction),
             ModelMessage(MessageRole.USER, f"Goal:\n{normalized_goal}"),
         ]
         tool_calls_executed = 0
@@ -102,7 +98,7 @@ returned as the next user message."""
                     last_tool_result=last_tool_result,
                 )
 
-            last_tool_result = execute_tool_call(action)
+            last_tool_result = await self._tool_executor.execute(action)
             tool_calls_executed += 1
             if step < self._max_steps:
                 messages.extend(
@@ -182,3 +178,22 @@ def _serialize_tool_result(result: ToolResult) -> str:
         separators=(",", ":"),
         sort_keys=True,
     )
+
+
+def _build_instruction(tool_executor: ToolExecutor) -> str:
+    definitions = [schema.as_dict() for schema in tool_executor.list_schemas()]
+    definitions_json = json.dumps(
+        definitions,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return f"""You are controlled by a tool agent loop.
+Reply with one JSON object and no surrounding prose.
+Available tool definitions:
+{definitions_json}
+To call a tool:
+{{"type":"tool_call","name":"tool_name","arguments":{{}}}}
+When the goal is complete:
+{{"type":"final_answer","answer":"your answer"}}
+A tool result, including any error, will be returned as the next user message."""
