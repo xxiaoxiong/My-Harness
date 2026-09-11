@@ -5,6 +5,7 @@ import json
 
 from harness import (
     CalculatorTool,
+    ContextBuilder,
     MessageRole,
     ModelMessage,
     ModelProvider,
@@ -32,7 +33,12 @@ class DemoToolCallingProvider(ModelProvider):
             }
             print(f"LLM -> Tool Call: {json.dumps(action, ensure_ascii=False)}")
         else:
-            observation = json.loads(request.messages[-1].content)
+            observation_message = next(
+                message
+                for message in reversed(request.messages)
+                if '"type":"tool_result"' in message.content
+            )
+            observation = json.loads(observation_message.content)
             print(f"Tool Executor -> {observation['name']}")
             print(
                 "Tool Result -> "
@@ -69,6 +75,7 @@ async def main() -> None:
         model="demo-model",
         max_steps=3,
         tool_executor=ToolExecutor(registry),
+        context_builder=ContextBuilder(max_context_chars=4_000),
     )
     result = await loop.run(goal)
 

@@ -5,6 +5,7 @@ import json
 
 from harness import (
     CalculatorTool,
+    ContextBuilder,
     MessageRole,
     ModelMessage,
     ModelProvider,
@@ -29,7 +30,12 @@ class StateDemoProvider(ModelProvider):
                 "arguments": {"expression": "21 * 2"},
             }
         else:
-            observation = json.loads(request.messages[-1].content)
+            observation_message = next(
+                message
+                for message in reversed(request.messages)
+                if '"type":"tool_result"' in message.content
+            )
+            observation = json.loads(observation_message.content)
             action = {
                 "type": "final_answer",
                 "answer": f"21 * 2 = {observation['result']}",
@@ -57,6 +63,7 @@ async def main() -> None:
         model="demo-model",
         max_steps=3,
         tool_executor=ToolExecutor(registry),
+        context_builder=ContextBuilder(max_context_chars=4_000),
     )
 
     run = await loop.run("计算 21 * 2", task_id="harn-05-demo")

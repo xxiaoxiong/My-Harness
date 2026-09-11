@@ -6,7 +6,8 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from harness.model import MessageRole, ModelMessage, ModelProvider, ModelRequest
+from harness.context import ContextBuilder
+from harness.model import ModelProvider, ModelRequest
 from harness.state import AgentState, AgentStatus
 from harness.tools import ToolCall, ToolExecutor, ToolResult
 
@@ -66,6 +67,7 @@ class ToolAgentLoop:
         model: str,
         max_steps: int,
         tool_executor: ToolExecutor,
+        context_builder: ContextBuilder,
     ) -> None:
         if not isinstance(model, str):
             raise TypeError("model must be a string")
@@ -78,12 +80,14 @@ class ToolAgentLoop:
             raise ValueError("max_steps must be greater than zero")
         if not isinstance(tool_executor, ToolExecutor):
             raise TypeError("tool_executor must be a ToolExecutor")
+        if not isinstance(context_builder, ContextBuilder):
+            raise TypeError("context_builder must be a ContextBuilder")
 
         self._provider = provider
         self._model = normalized_model
         self._max_steps = max_steps
         self._tool_executor = tool_executor
-        self._instruction = _build_instruction(tool_executor)
+        self._context_builder = context_builder
 
     async def run(
         self,
@@ -102,20 +106,21 @@ class ToolAgentLoop:
         state = AgentState.start(
             goal=normalized_goal,
             task_id=task_id,
-            messages=[
-                ModelMessage(MessageRole.DEVELOPER, self._instruction),
-                ModelMessage(MessageRole.USER, f"Goal:\n{normalized_goal}"),
-            ],
+            messages=[],
         )
 
         for _ in range(self._max_steps):
             state.begin_model_step()
+            context = self._context_builder.build(
+                state,
+                tool_schemas=self._tool_executor.list_schemas(),
+            )
             response = await self._provider.generate(
-                ModelRequest(model=self._model, messages=tuple(state.messages))
+                ModelRequest(model=self._model, messages=context.messages)
             )
             state.record_model_call(
                 response,
-                input_message_count=len(state.messages),
+                input_message_count=len(context.messages),
             )
             state.append_message(response.message)
             action = _parse_action(response.message.content)
@@ -128,10 +133,7 @@ class ToolAgentLoop:
             tool_result = await self._tool_executor.execute(action)
             state.record_tool_result(tool_result)
             state.append_message(
-                ModelMessage(
-                    MessageRole.USER,
-                    _serialize_tool_result(tool_result),
-                )
+                self._context_builder.tool_result_message(tool_result)
             )
 
         state.reach_max_steps()
@@ -177,37 +179,3 @@ def _parse_action(output: str) -> ToolCall | _FinalAnswer:
         output,
         "type must be 'tool_call' or 'final_answer'",
     )
-
-
-def _serialize_tool_result(result: ToolResult) -> str:
-    return json.dumps(
-        {
-            "type": "tool_result",
-            "name": result.name,
-            "arguments": result.arguments,
-            "result": result.result,
-            "error": result.error,
-        },
-        ensure_ascii=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    )
-
-
-def _build_instruction(tool_executor: ToolExecutor) -> str:
-    definitions = [schema.as_dict() for schema in tool_executor.list_schemas()]
-    definitions_json = json.dumps(
-        definitions,
-        ensure_ascii=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    )
-    return f"""You are controlled by a tool agent loop.
-Reply with one JSON object and no surrounding prose.
-Available tool definitions:
-{definitions_json}
-To call a tool:
-{{"type":"tool_call","name":"tool_name","arguments":{{}}}}
-When the goal is complete:
-{{"type":"final_answer","answer":"your answer"}}
-A tool result, including any error, will be returned as the next user message."""

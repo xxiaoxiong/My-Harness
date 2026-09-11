@@ -5,6 +5,7 @@ import json
 
 from harness import (
     CalculatorTool,
+    ContextBuilder,
     MessageRole,
     ModelMessage,
     ModelProvider,
@@ -25,8 +26,12 @@ class RegistryAwareDemoProvider(ModelProvider):
     async def generate(self, request: ModelRequest) -> ModelResponse:
         self.call_count += 1
         if self.call_count == 1:
-            definitions_line = request.messages[0].content.splitlines()[3]
-            definitions = json.loads(definitions_line)
+            definitions_message = next(
+                message
+                for message in request.messages
+                if message.content.startswith("Tool Definitions:\n")
+            )
+            definitions = json.loads(definitions_message.content.split("\n", 1)[1])
             selected_name = definitions[0]["name"]
             action = {
                 "type": "tool_call",
@@ -36,7 +41,12 @@ class RegistryAwareDemoProvider(ModelProvider):
             print(f"Agent selected schema -> {selected_name}")
             print(f"LLM Tool Call -> {json.dumps(action, ensure_ascii=False)}")
         else:
-            observation = json.loads(request.messages[-1].content)
+            observation_message = next(
+                message
+                for message in reversed(request.messages)
+                if '"type":"tool_result"' in message.content
+            )
+            observation = json.loads(observation_message.content)
             action = {
                 "type": "final_answer",
                 "answer": f"144 / 12 = {observation['result']}",
@@ -76,6 +86,7 @@ async def main() -> None:
         model="demo-model",
         max_steps=3,
         tool_executor=executor,
+        context_builder=ContextBuilder(max_context_chars=4_000),
     )
     result = await loop.run("计算 144 / 12")
 

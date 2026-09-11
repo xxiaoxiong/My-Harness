@@ -2,7 +2,7 @@
 
 这是一个按照 `docs/agent_harness_progressive_learning_roadmap.md` 逐步构建 Agent Harness 的学习项目。
 
-当前进度：**HARN-05 — Agent State + Trajectory**。
+当前进度：**HARN-06 — Context Engine**。
 
 ## 按阶段独立学习
 
@@ -54,9 +54,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapsho
 - 分离的 `ToolSchema`、`Tool`、`ToolRegistry` 与 `ToolExecutor`；
 - 通过注册发现实现，Agent Loop 不再依赖具体 calculator；
 - 包含 task、goal、step、status、消息、工具活动和时间的 `AgentState`；
-- 记录 Model Call、Tool Call、Tool Result 和终止事件的完整 trajectory。
+- 记录 Model Call、Tool Call、Tool Result 和终止事件的完整 trajectory；
+- 独立组装 System、Goal、History、Tool Definitions 和 Current State 的 `ContextBuilder`；
+- 基于 `max_context_chars` 的硬预算和简单截断元数据。
 
-本阶段还没有独立 ContextBuilder 或持久化 Checkpoint；这些能力会在后续阶段按路线图逐步加入。
+本阶段还没有旧历史摘要或持久化 Checkpoint；这些能力会在后续阶段按路线图逐步加入。
 
 ## 运行 Demo
 
@@ -89,6 +91,7 @@ python -m examples.harn_02_minimal_agent_loop
 python -m examples.harn_03_tool_agent
 python -m examples.harn_04_tool_registry
 python -m examples.harn_05_agent_state
+python -m examples.harn_06_context_engine
 ```
 
 可通过环境变量观察配置生效：
@@ -111,4 +114,4 @@ python -m examples.harn_00_project_skeleton
 python -m unittest discover -s tests -v
 ```
 
-各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-05 对 State、Context 与 Trajectory 的区分见 [`docs/stage_notes/HARN-05.md`](docs/stage_notes/HARN-05.md)。
+各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-06 的上下文组成和预算算法见 [`docs/stage_notes/HARN-06.md`](docs/stage_notes/HARN-06.md)。

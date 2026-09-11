@@ -1,6 +1,7 @@
 import json
 import unittest
 
+from harness.context import ContextBuilder
 from harness.model import (
     MessageRole,
     ModelMessage,
@@ -49,6 +50,7 @@ class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
             model="demo-model",
             max_steps=max_steps,
             tool_executor=ToolExecutor(registry),
+            context_builder=ContextBuilder(max_context_chars=4_000),
         )
 
     async def test_tool_result_is_observed_before_the_final_answer(self) -> None:
@@ -71,7 +73,7 @@ class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(result.last_tool_result)
         self.assertEqual(result.last_tool_result.result, 14)  # type: ignore[union-attr]
         self.assertEqual(result.state.task_id, "task-calculate")
-        self.assertEqual(len(result.state.messages), 5)
+        self.assertEqual(len(result.state.messages), 3)
         self.assertEqual(result.state.tool_calls[0].name, "calculator")
         self.assertEqual(result.state.tool_results[0].result, 14)
         self.assertEqual(
@@ -85,12 +87,12 @@ class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-        second_request = provider.requests[1]
-        self.assertEqual(len(provider.requests[0].messages), 2)
-        self.assertIn('"name":"calculator"', provider.requests[0].messages[0].content)
-        self.assertIn('"parameters"', provider.requests[0].messages[0].content)
-        self.assertEqual(len(second_request.messages), 4)
-        observation = json.loads(second_request.messages[-1].content)
+        first_request, second_request = provider.requests
+        self.assertEqual(len(first_request.messages), 4)
+        self.assertIn('"name":"calculator"', first_request.messages[2].content)
+        self.assertIn('"parameters"', first_request.messages[2].content)
+        self.assertEqual(len(second_request.messages), 6)
+        observation = json.loads(second_request.messages[3].content)
         self.assertEqual(
             observation,
             {
@@ -118,7 +120,7 @@ class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
 
         result = await loop.run("Calculate 1 / 0")
 
-        observation = json.loads(provider.requests[1].messages[-1].content)
+        observation = json.loads(provider.requests[1].messages[3].content)
         self.assertEqual(observation["error"], "division by zero")
         self.assertIsNone(observation["result"])
         self.assertEqual(result.status, AgentStatus.FINISHED)

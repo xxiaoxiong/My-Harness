@@ -1,6 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-05 stage.
+"""Educational Agent Harness package through the completed HARN-06 stage.
 
-The public API now tracks each tool-agent run as state plus trajectory.
+The public API now builds bounded model context outside the Agent Loop.
 """
 
 from harness.core import (
@@ -10,6 +10,11 @@ from harness.core import (
     configure_logging,
     get_logger,
     load_config,
+)
+from harness.context import (
+    DEFAULT_TOOL_AGENT_SYSTEM_PROMPT,
+    ContextBuilder,
+    ContextBuildResult,
 )
 from harness.model import (
     MessageRole,
@@ -62,6 +67,9 @@ __all__ = [
     "CALCULATOR_NAME",
     "CalculatorError",
     "CalculatorTool",
+    "ContextBuildResult",
+    "ContextBuilder",
+    "DEFAULT_TOOL_AGENT_SYSTEM_PROMPT",
     "DuplicateToolError",
     "Environment",
     "HarnessConfig",
