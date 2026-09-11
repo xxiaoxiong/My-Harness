@@ -12,23 +12,22 @@
 | --- | --- | --- |
 | HARN-00 | [`stages/HARN-00/`](stages/HARN-00/) | 最小项目骨架、配置、日志、基础类型 |
 | HARN-01 | [`stages/HARN-01/`](stages/HARN-01/) | Model Adapter、OpenAI-compatible provider、调用观测 |
-| HARN-02 | [`stages/HARN-02/`](stages/HARN-02/) | 最小 Agent Loop、决策反馈、`max_steps` 终止保护 |
 
-例如，单独学习 HARN-02 时：
+例如，单独学习 HARN-01 时：
 
 ```powershell
-cd stages/HARN-02
+cd stages/HARN-01
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e .
 python -m unittest discover -s tests -v
-python -m examples.harn_02_minimal_agent_loop
+python -m examples.harn_01_model_adapter
 ```
 
 下一阶段将在根目录基于当前版本做最小演进；完成并验证、提交根目录代码后，运行以下命令生成新快照：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapshot.ps1 HARN-03
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapshot.ps1 HARN-02
 ```
 
 完整约定见 [`docs/stage_workflow.md`](docs/stage_workflow.md)。
