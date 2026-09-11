@@ -1,7 +1,7 @@
-"""Educational Agent Harness package through the completed HARN-01 stage.
+"""Educational Agent Harness package through the completed HARN-02 stage.
 
-The public API currently contains foundational services and a model adapter;
-agent behavior is introduced in later stages.
+The public API contains foundational services, a model adapter, and the first
+bounded agent loop.
 """
 
 from harness.core import (
@@ -21,8 +21,19 @@ from harness.model import (
     OpenAICompatibleProvider,
     TokenUsage,
 )
+from harness.runtime import (
+    AgentDecision,
+    AgentLoop,
+    AgentRunResult,
+    AgentRunStatus,
+    InvalidAgentDecision,
+)
 
 __all__ = [
+    "AgentDecision",
+    "AgentLoop",
+    "AgentRunResult",
+    "AgentRunStatus",
     "Environment",
     "HarnessConfig",
     "LogLevel",
@@ -35,5 +46,6 @@ __all__ = [
     "TokenUsage",
     "configure_logging",
     "get_logger",
+    "InvalidAgentDecision",
     "load_config",
 ]
