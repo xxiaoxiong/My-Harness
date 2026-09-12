@@ -1,6 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-06 stage.
+"""Educational Agent Harness package through the completed HARN-07 stage.
 
-The public API now builds bounded model context outside the Agent Loop.
+The public API now compacts old context while preserving full Agent state.
 """
 
 from harness.core import (
@@ -13,8 +13,11 @@ from harness.core import (
 )
 from harness.context import (
     DEFAULT_TOOL_AGENT_SYSTEM_PROMPT,
+    SUMMARY_TRUNCATION_MARKER,
     ContextBuilder,
     ContextBuildResult,
+    HistorySummarizer,
+    SimpleHistorySummarizer,
 )
 from harness.model import (
     MessageRole,
@@ -73,6 +76,7 @@ __all__ = [
     "DuplicateToolError",
     "Environment",
     "HarnessConfig",
+    "HistorySummarizer",
     "InvalidAgentAction",
     "InvalidAgentDecision",
     "LogLevel",
@@ -82,6 +86,8 @@ __all__ = [
     "ModelRequest",
     "ModelResponse",
     "OpenAICompatibleProvider",
+    "SUMMARY_TRUNCATION_MARKER",
+    "SimpleHistorySummarizer",
     "TokenUsage",
     "Tool",
     "ToolAgentLoop",
