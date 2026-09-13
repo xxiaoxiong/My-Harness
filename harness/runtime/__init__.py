@@ -23,12 +23,28 @@ from harness.runtime.tool_agent_loop import (
     ToolAgentLoop,
     ToolAgentRunResult,
 )
+from harness.runtime.task import AgentTask, InvalidTaskTransition, TaskStatus
+from harness.runtime.task_store import (
+    DuplicateTaskError,
+    InMemoryTaskStore,
+    TaskNotFoundError,
+    TaskStore,
+    TaskStoreError,
+)
+from harness.runtime.worker import (
+    AgentLoopFactory,
+    AgentWorker,
+    InvalidWorkerTaskState,
+)
 
 __all__ = [
     "AgentDecision",
+    "AgentLoopFactory",
     "AgentLoop",
     "AgentRunResult",
     "AgentRunStatus",
+    "AgentTask",
+    "AgentWorker",
     "CHECKPOINT_SCHEMA_VERSION",
     "Checkpoint",
     "CheckpointContext",
@@ -36,10 +52,18 @@ __all__ = [
     "CheckpointError",
     "CheckpointNotFoundError",
     "CheckpointStore",
+    "DuplicateTaskError",
+    "InMemoryTaskStore",
     "InvalidCheckpointTaskId",
     "InvalidAgentAction",
     "InvalidAgentDecision",
+    "InvalidTaskTransition",
+    "InvalidWorkerTaskState",
     "JsonCheckpointStore",
+    "TaskNotFoundError",
+    "TaskStatus",
+    "TaskStore",
+    "TaskStoreError",
     "ToolAgentLoop",
     "ToolAgentRunResult",
 ]

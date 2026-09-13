@@ -1,6 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-14 stage.
+"""Educational Agent Harness package through the completed HARN-15 stage.
 
-Local and MCP Tools now share the same Registry, Executor, and Agent Loop.
+Stored Agent Tasks and Workers now decouple Clients from Agent lifetimes.
 """
 
 from harness.core import (
@@ -85,9 +85,12 @@ from harness.state import (
 )
 from harness.runtime import (
     AgentDecision,
+    AgentLoopFactory,
     AgentLoop,
     AgentRunResult,
     AgentRunStatus,
+    AgentTask,
+    AgentWorker,
     CHECKPOINT_SCHEMA_VERSION,
     Checkpoint,
     CheckpointContext,
@@ -95,10 +98,18 @@ from harness.runtime import (
     CheckpointError,
     CheckpointNotFoundError,
     CheckpointStore,
+    DuplicateTaskError,
+    InMemoryTaskStore,
     InvalidAgentAction,
     InvalidAgentDecision,
     InvalidCheckpointTaskId,
+    InvalidTaskTransition,
+    InvalidWorkerTaskState,
     JsonCheckpointStore,
+    TaskNotFoundError,
+    TaskStatus,
+    TaskStore,
+    TaskStoreError,
     ToolAgentLoop,
     ToolAgentRunResult,
 )
@@ -136,11 +147,14 @@ from harness.tools import (
 
 __all__ = [
     "AgentDecision",
+    "AgentLoopFactory",
     "AgentLoop",
     "AgentRunResult",
     "AgentRunStatus",
     "AgentState",
     "AgentStatus",
+    "AgentTask",
+    "AgentWorker",
     "AllowAllPolicyEngine",
     "CALCULATOR_NAME",
     "DELETE_FILE_NAME",
@@ -163,6 +177,7 @@ __all__ = [
     "DuplicateToolError",
     "DuplicatePluginError",
     "DuplicatePromptFragmentError",
+    "DuplicateTaskError",
     "Environment",
     "HarnessConfig",
     "Harness",
@@ -177,6 +192,8 @@ __all__ = [
     "InvalidAgentDecision",
     "InvalidCheckpointTaskId",
     "InvalidPermissionDecision",
+    "InvalidTaskTransition",
+    "InvalidWorkerTaskState",
     "JsonCheckpointStore",
     "GIT_COMMIT_NAME",
     "GIT_DIFF_NAME",
@@ -188,6 +205,7 @@ __all__ = [
     "GitStatusTool",
     "GitToolError",
     "InMemoryGitBackend",
+    "InMemoryTaskStore",
     "LogLevel",
     "LoggingHook",
     "LocalSandbox",
@@ -221,6 +239,10 @@ __all__ = [
     "SUMMARY_TRUNCATION_MARKER",
     "SimpleHistorySummarizer",
     "StaticPolicyEngine",
+    "TaskNotFoundError",
+    "TaskStatus",
+    "TaskStore",
+    "TaskStoreError",
     "Skill",
     "ShellTool",
     "ShellToolError",

@@ -2,7 +2,7 @@
 
 这是一个按照 `docs/agent_harness_progressive_learning_roadmap.md` 逐步构建 Agent Harness 的学习项目。
 
-当前进度：**HARN-14 — MCP Adapter**。
+当前进度：**HARN-15 — Task Runtime + Worker**。
 
 ## 按阶段独立学习
 
@@ -90,7 +90,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapsho
 - 传输无关的 `MCPClient` 端口和 MCP Tool 数据类型；
 - 把远端定义映射为普通 Tool 的 `MCPClientAdapter` / `MCPToolAdapter`；
 - 本地 Tool 与 MCP Tool 共用 Registry、Executor 和 Agent Loop；
-- MCP 远端错误到 Tool observation 的归一化反馈。
+- MCP 远端错误到 Tool observation 的归一化反馈；
+- 独立于 Agent State 的 `AgentTask` 与七态生命周期；
+- Client 与 Worker 共享边界 `TaskStore` / `InMemoryTaskStore`；
+- 从存储中执行或恢复 Task 的 `AgentWorker`；
+- Agent 结果、审批等待、硬停止和异常到 Task 状态的映射。
 
 `LocalSandbox` 是受控的本机进程边界，不是容器或文件系统 jail；Docker 级隔离尚未实现。
 
@@ -136,6 +140,7 @@ python -m examples.harn_11_policy_permission
 python -m examples.harn_12_skill_plugin
 python -m examples.harn_13_sandbox
 python -m examples.harn_14_mcp_adapter
+python -m examples.harn_15_task_runtime
 ```
 
 可通过环境变量观察配置生效：
@@ -158,4 +163,4 @@ python -m examples.harn_00_project_skeleton
 python -m unittest discover -s tests -v
 ```
 
-各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-14 的 MCP Client 端口、本地/远端 Tool 统一路径与概念分层见 [`docs/stage_notes/HARN-14.md`](docs/stage_notes/HARN-14.md)。
+各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-15 的 AgentTask 生命周期、TaskStore 与 Worker 解耦见 [`docs/stage_notes/HARN-15.md`](docs/stage_notes/HARN-15.md)。
