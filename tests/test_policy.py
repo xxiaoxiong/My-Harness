@@ -10,6 +10,7 @@ from harness.model import (
     ModelResponse,
 )
 from harness.policy import (
+    CompositePolicyEngine,
     InvalidPermissionDecision,
     PermissionDecision,
     PermissionRequest,
@@ -78,6 +79,29 @@ def _loop(
 
 
 class PolicyTests(unittest.IsolatedAsyncioTestCase):
+    async def test_composite_policy_uses_strongest_decision(self) -> None:
+        request = PermissionRequest(
+            task_id="composite-task",
+            goal="Test policy composition",
+            step=1,
+            tool_call=ToolCall("git_commit", {"message": "test"}),
+        )
+        approval = StaticPolicyEngine(
+            {"git_commit": PermissionDecision.REQUIRE_APPROVAL}
+        )
+        denial = StaticPolicyEngine(
+            {"git_commit": PermissionDecision.DENY}
+        )
+
+        self.assertEqual(
+            await CompositePolicyEngine([approval]).decide(request),
+            PermissionDecision.REQUIRE_APPROVAL,
+        )
+        self.assertEqual(
+            await CompositePolicyEngine([approval, denial]).decide(request),
+            PermissionDecision.DENY,
+        )
+
     async def test_static_policy_uses_tool_rules_and_default(self) -> None:
         policy = StaticPolicyEngine(
             {

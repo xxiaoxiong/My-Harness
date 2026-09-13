@@ -2,7 +2,7 @@
 
 这是一个按照 `docs/agent_harness_progressive_learning_roadmap.md` 逐步构建 Agent Harness 的学习项目。
 
-当前进度：**HARN-11 — Policy / Permission**。
+当前进度：**HARN-12 — Skill / Plugin**。
 
 ## 按阶段独立学习
 
@@ -76,9 +76,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapsho
 - 不改变 Agent State 的 `LoggingHook` 与 `MetricsHook`；
 - 模型 Tool 意图与 Runtime 权限决定分离；
 - `ALLOW / REQUIRE_APPROVAL / DENY` 三态 Policy 执行链；
-- 可替换 `PolicyEngine`、结构化 `PermissionRequest` 与独立决策轨迹。
+- 可替换 `PolicyEngine`、结构化 `PermissionRequest` 与独立决策轨迹；
+- 通过 `Plugin.setup(harness)` 组合注册 Tool、Hook、Prompt 与 Policy；
+- 加载后才出现 Git Tool 的 `GitSkill`；
+- 多插件 Policy 合并和 Runtime 构造后能力封闭。
 
-本阶段还没有组合注册 Tool、Hook、Prompt 与 Policy 的 Plugin / Skill；该能力会在下一阶段加入。
+本阶段还没有受控本地进程执行的 Sandbox；该能力会在下一阶段加入。
 
 ## 运行 Demo
 
@@ -119,6 +122,7 @@ python -m examples.harn_09_interrupt_resume start harn-09-demo
 python -m examples.harn_09_interrupt_resume resume harn-09-demo --approve
 python -m examples.harn_10_hooks
 python -m examples.harn_11_policy_permission
+python -m examples.harn_12_skill_plugin
 ```
 
 可通过环境变量观察配置生效：
@@ -141,4 +145,4 @@ python -m examples.harn_00_project_skeleton
 python -m unittest discover -s tests -v
 ```
 
-各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-11 的模型意图、权限三态和 Runtime 执行链见 [`docs/stage_notes/HARN-11.md`](docs/stage_notes/HARN-11.md)。
+各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-12 的组合根、Plugin 注入协议和 GitSkill 见 [`docs/stage_notes/HARN-12.md`](docs/stage_notes/HARN-12.md)。

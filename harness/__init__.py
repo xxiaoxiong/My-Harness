@@ -1,6 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-11 stage.
+"""Educational Agent Harness package through the completed HARN-12 stage.
 
-The public API now separates model Tool intent from Runtime permission.
+The public API now composes Tools, Hooks, Prompts, and Policies with Plugins.
 """
 
 from harness.core import (
@@ -18,6 +18,15 @@ from harness.context import (
     ContextBuildResult,
     HistorySummarizer,
     SimpleHistorySummarizer,
+)
+from harness.extensions import (
+    DuplicatePluginError,
+    DuplicatePromptFragmentError,
+    Harness,
+    HarnessSealedError,
+    Plugin,
+    PromptFragment,
+    Skill,
 )
 from harness.hooks import (
     Hook,
@@ -39,11 +48,24 @@ from harness.model import (
 )
 from harness.policy import (
     AllowAllPolicyEngine,
+    CompositePolicyEngine,
     InvalidPermissionDecision,
     PermissionDecision,
     PermissionRequest,
     PolicyEngine,
     StaticPolicyEngine,
+)
+from harness.skills import (
+    GIT_COMMIT_NAME,
+    GIT_DIFF_NAME,
+    GIT_STATUS_NAME,
+    GitBackend,
+    GitCommitTool,
+    GitDiffTool,
+    GitSkill,
+    GitStatusTool,
+    GitToolError,
+    InMemoryGitBackend,
 )
 from harness.state import (
     AgentState,
@@ -102,6 +124,7 @@ __all__ = [
     "CHECKPOINT_SCHEMA_VERSION",
     "CalculatorError",
     "CalculatorTool",
+    "CompositePolicyEngine",
     "DeleteFileError",
     "DeleteFileTool",
     "Checkpoint",
@@ -114,8 +137,12 @@ __all__ = [
     "ContextBuilder",
     "DEFAULT_TOOL_AGENT_SYSTEM_PROMPT",
     "DuplicateToolError",
+    "DuplicatePluginError",
+    "DuplicatePromptFragmentError",
     "Environment",
     "HarnessConfig",
+    "Harness",
+    "HarnessSealedError",
     "HistorySummarizer",
     "Hook",
     "HookContext",
@@ -127,6 +154,16 @@ __all__ = [
     "InvalidCheckpointTaskId",
     "InvalidPermissionDecision",
     "JsonCheckpointStore",
+    "GIT_COMMIT_NAME",
+    "GIT_DIFF_NAME",
+    "GIT_STATUS_NAME",
+    "GitBackend",
+    "GitCommitTool",
+    "GitDiffTool",
+    "GitSkill",
+    "GitStatusTool",
+    "GitToolError",
+    "InMemoryGitBackend",
     "LogLevel",
     "LoggingHook",
     "MessageRole",
@@ -139,9 +176,12 @@ __all__ = [
     "PermissionDecision",
     "PermissionRequest",
     "PolicyEngine",
+    "Plugin",
+    "PromptFragment",
     "SUMMARY_TRUNCATION_MARKER",
     "SimpleHistorySummarizer",
     "StaticPolicyEngine",
+    "Skill",
     "TokenUsage",
     "Tool",
     "ToolAgentLoop",
