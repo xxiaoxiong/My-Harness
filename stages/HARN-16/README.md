@@ -26,23 +26,22 @@
 | HARN-13 | [`stages/HARN-13/`](stages/HARN-13/) | Sandbox API、受控本地进程与 Shell Tool |
 | HARN-14 | [`stages/HARN-14/`](stages/HARN-14/) | MCP Client Adapter 与本地/远端 Tool 统一执行 |
 | HARN-15 | [`stages/HARN-15/`](stages/HARN-15/) | AgentTask、TaskStore 与独立 AgentWorker |
-| HARN-16 | [`stages/HARN-16/`](stages/HARN-16/) | 优先级调度、并发、重试、取消与副作用幂等 |
 
-例如，单独学习 HARN-16 时：
+例如，单独学习 HARN-15 时：
 
 ```powershell
-cd stages/HARN-16
+cd stages/HARN-15
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e .
 python -m unittest discover -s tests -v
-python -m examples.harn_16_scheduler_reliability
+python -m examples.harn_15_task_runtime
 ```
 
 下一阶段将在根目录基于当前版本做最小演进；完成并验证、提交根目录代码后，运行以下命令生成新快照：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapshot.ps1 HARN-17
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapshot.ps1 HARN-16
 ```
 
 完整约定见 [`docs/stage_workflow.md`](docs/stage_workflow.md)。
