@@ -20,23 +20,23 @@
 | HARN-07 | [`stages/HARN-07/`](stages/HARN-07/) | 旧历史摘要、近期消息保留与 Context Compaction |
 | HARN-08 | [`stages/HARN-08/`](stages/HARN-08/) | JSON Checkpoint、逐步原子保存与崩溃恢复 |
 | HARN-09 | [`stages/HARN-09/`](stages/HARN-09/) | 主动 Interrupt、等待批准与跨进程 Resume |
-| HARN-10 | [`stages/HARN-10/`](stages/HARN-10/) | 生命周期 Hook、LoggingHook 与 MetricsHook |
 
-例如，单独学习 HARN-10 时：
+例如，单独学习 HARN-09 时：
 
 ```powershell
-cd stages/HARN-10
+cd stages/HARN-09
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e .
 python -m unittest discover -s tests -v
-python -m examples.harn_10_hooks
+python -m examples.harn_09_interrupt_resume start harn-09-demo
+python -m examples.harn_09_interrupt_resume resume harn-09-demo --approve
 ```
 
 下一阶段将在根目录基于当前版本做最小演进；完成并验证、提交根目录代码后，运行以下命令生成新快照：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapshot.ps1 HARN-11
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapshot.ps1 HARN-10
 ```
 
 完整约定见 [`docs/stage_workflow.md`](docs/stage_workflow.md)。
