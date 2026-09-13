@@ -22,23 +22,22 @@
 | HARN-09 | [`stages/HARN-09/`](stages/HARN-09/) | 主动 Interrupt、等待批准与跨进程 Resume |
 | HARN-10 | [`stages/HARN-10/`](stages/HARN-10/) | 生命周期 Hook、LoggingHook 与 MetricsHook |
 | HARN-11 | [`stages/HARN-11/`](stages/HARN-11/) | PolicyEngine、权限三态与意图/许可分离 |
-| HARN-12 | [`stages/HARN-12/`](stages/HARN-12/) | Plugin 扩展机制、Harness 组合根与 GitSkill |
 
-例如，单独学习 HARN-12 时：
+例如，单独学习 HARN-11 时：
 
 ```powershell
-cd stages/HARN-12
+cd stages/HARN-11
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e .
 python -m unittest discover -s tests -v
-python -m examples.harn_12_skill_plugin
+python -m examples.harn_11_policy_permission
 ```
 
 下一阶段将在根目录基于当前版本做最小演进；完成并验证、提交根目录代码后，运行以下命令生成新快照：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapshot.ps1 HARN-13
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapshot.ps1 HARN-12
 ```
 
 完整约定见 [`docs/stage_workflow.md`](docs/stage_workflow.md)。
