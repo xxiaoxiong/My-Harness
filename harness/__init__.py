@@ -1,6 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-12 stage.
+"""Educational Agent Harness package through the completed HARN-13 stage.
 
-The public API now composes Tools, Hooks, Prompts, and Policies with Plugins.
+The public API now routes process-backed Tools through a bounded Sandbox API.
 """
 
 from harness.core import (
@@ -92,9 +92,20 @@ from harness.runtime import (
     ToolAgentLoop,
     ToolAgentRunResult,
 )
+from harness.sandbox import (
+    LocalSandbox,
+    Sandbox,
+    SandboxBoundaryError,
+    SandboxError,
+    SandboxLimitError,
+    SandboxProcessError,
+    SandboxRequest,
+    SandboxResult,
+)
 from harness.tools import (
     CALCULATOR_NAME,
     DELETE_FILE_NAME,
+    SHELL_NAME,
     CalculatorError,
     CalculatorTool,
     DeleteFileError,
@@ -108,6 +119,8 @@ from harness.tools import (
     ToolRegistry,
     ToolResult,
     ToolSchema,
+    ShellTool,
+    ShellToolError,
     calculate,
 )
 
@@ -121,6 +134,7 @@ __all__ = [
     "AllowAllPolicyEngine",
     "CALCULATOR_NAME",
     "DELETE_FILE_NAME",
+    "SHELL_NAME",
     "CHECKPOINT_SCHEMA_VERSION",
     "CalculatorError",
     "CalculatorTool",
@@ -166,6 +180,7 @@ __all__ = [
     "InMemoryGitBackend",
     "LogLevel",
     "LoggingHook",
+    "LocalSandbox",
     "MessageRole",
     "ModelMessage",
     "ModelProvider",
@@ -178,10 +193,19 @@ __all__ = [
     "PolicyEngine",
     "Plugin",
     "PromptFragment",
+    "Sandbox",
+    "SandboxBoundaryError",
+    "SandboxError",
+    "SandboxLimitError",
+    "SandboxProcessError",
+    "SandboxRequest",
+    "SandboxResult",
     "SUMMARY_TRUNCATION_MARKER",
     "SimpleHistorySummarizer",
     "StaticPolicyEngine",
     "Skill",
+    "ShellTool",
+    "ShellToolError",
     "TokenUsage",
     "Tool",
     "ToolAgentLoop",

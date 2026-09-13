@@ -18,6 +18,7 @@ from harness.tools.registry import (
     ToolNotFoundError,
     ToolRegistry,
 )
+from harness.tools.shell import SHELL_NAME, ShellTool, ShellToolError
 from harness.tools.types import ToolCall, ToolResult
 
 __all__ = [
@@ -28,6 +29,9 @@ __all__ = [
     "DeleteFileError",
     "DeleteFileTool",
     "DuplicateToolError",
+    "SHELL_NAME",
+    "ShellTool",
+    "ShellToolError",
     "Tool",
     "ToolCall",
     "ToolError",
