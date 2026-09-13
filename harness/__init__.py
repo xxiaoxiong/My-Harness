@@ -1,6 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-15 stage.
+"""Educational Agent Harness package through the completed HARN-16 stage.
 
-Stored Agent Tasks and Workers now decouple Clients from Agent lifetimes.
+The Task Runtime now schedules and retries work with bounded idempotency.
 """
 
 from harness.core import (
@@ -91,6 +91,7 @@ from harness.runtime import (
     AgentRunStatus,
     AgentTask,
     AgentWorker,
+    AsyncSleeper,
     CHECKPOINT_SCHEMA_VERSION,
     Checkpoint,
     CheckpointContext,
@@ -103,13 +104,20 @@ from harness.runtime import (
     InvalidAgentAction,
     InvalidAgentDecision,
     InvalidCheckpointTaskId,
+    InvalidScheduledTaskState,
     InvalidTaskTransition,
     InvalidWorkerTaskState,
     JsonCheckpointStore,
+    RetryPolicy,
+    RetryPredicate,
+    SchedulerAlreadyRunningError,
+    SchedulerError,
     TaskNotFoundError,
+    TaskScheduler,
     TaskStatus,
     TaskStore,
     TaskStoreError,
+    TaskSubmissionConflictError,
     ToolAgentLoop,
     ToolAgentRunResult,
 )
@@ -132,6 +140,11 @@ from harness.tools import (
     DeleteFileError,
     DeleteFileTool,
     DuplicateToolError,
+    IdempotencyConflictError,
+    IdempotencyRecord,
+    IdempotencyStore,
+    IdempotencyStoreError,
+    InMemoryIdempotencyStore,
     Tool,
     ToolCall,
     ToolError,
@@ -143,6 +156,7 @@ from harness.tools import (
     ShellTool,
     ShellToolError,
     calculate,
+    tool_call_idempotency_key,
 )
 
 __all__ = [
@@ -155,6 +169,7 @@ __all__ = [
     "AgentStatus",
     "AgentTask",
     "AgentWorker",
+    "AsyncSleeper",
     "AllowAllPolicyEngine",
     "CALCULATOR_NAME",
     "DELETE_FILE_NAME",
@@ -192,6 +207,7 @@ __all__ = [
     "InvalidAgentDecision",
     "InvalidCheckpointTaskId",
     "InvalidPermissionDecision",
+    "InvalidScheduledTaskState",
     "InvalidTaskTransition",
     "InvalidWorkerTaskState",
     "JsonCheckpointStore",
@@ -205,6 +221,7 @@ __all__ = [
     "GitStatusTool",
     "GitToolError",
     "InMemoryGitBackend",
+    "InMemoryIdempotencyStore",
     "InMemoryTaskStore",
     "LogLevel",
     "LoggingHook",
@@ -229,6 +246,8 @@ __all__ = [
     "PolicyEngine",
     "Plugin",
     "PromptFragment",
+    "RetryPolicy",
+    "RetryPredicate",
     "Sandbox",
     "SandboxBoundaryError",
     "SandboxError",
@@ -236,13 +255,17 @@ __all__ = [
     "SandboxProcessError",
     "SandboxRequest",
     "SandboxResult",
+    "SchedulerAlreadyRunningError",
+    "SchedulerError",
     "SUMMARY_TRUNCATION_MARKER",
     "SimpleHistorySummarizer",
     "StaticPolicyEngine",
     "TaskNotFoundError",
+    "TaskScheduler",
     "TaskStatus",
     "TaskStore",
     "TaskStoreError",
+    "TaskSubmissionConflictError",
     "Skill",
     "ShellTool",
     "ShellToolError",
@@ -259,8 +282,13 @@ __all__ = [
     "ToolSchema",
     "TrajectoryEvent",
     "TrajectoryEventKind",
+    "IdempotencyConflictError",
+    "IdempotencyRecord",
+    "IdempotencyStore",
+    "IdempotencyStoreError",
     "calculate",
     "configure_logging",
     "get_logger",
     "load_config",
+    "tool_call_idempotency_key",
 ]

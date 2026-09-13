@@ -2,7 +2,7 @@
 
 这是一个按照 `docs/agent_harness_progressive_learning_roadmap.md` 逐步构建 Agent Harness 的学习项目。
 
-当前进度：**HARN-15 — Task Runtime + Worker**。
+当前进度：**HARN-16 — Scheduler + Reliability**。
 
 ## 按阶段独立学习
 
@@ -95,7 +95,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapsho
 - 独立于 Agent State 的 `AgentTask` 与七态生命周期；
 - Client 与 Worker 共享边界 `TaskStore` / `InMemoryTaskStore`；
 - 从存储中执行或恢复 Task 的 `AgentWorker`；
-- Agent 结果、审批等待、硬停止和异常到 Task 状态的映射。
+- Agent 结果、审批等待、硬停止和异常到 Task 状态的映射；
+- 带 priority、FIFO tie-break 与 `max_concurrency` 的 Task Scheduler；
+- 有界 attempts、attempt timeout 与 exponential backoff；
+- queued/running/waiting/suspended Task cancellation；
+- Client 提交幂等与 Tool 结果幂等缓存；
+- 临时模型失败、Tool timeout、Checkpoint 前崩溃和重复 Tool Call 演练。
 
 `LocalSandbox` 是受控的本机进程边界，不是容器或文件系统 jail；Docker 级隔离尚未实现。
 
@@ -142,6 +147,7 @@ python -m examples.harn_12_skill_plugin
 python -m examples.harn_13_sandbox
 python -m examples.harn_14_mcp_adapter
 python -m examples.harn_15_task_runtime
+python -m examples.harn_16_scheduler_reliability
 ```
 
 可通过环境变量观察配置生效：
@@ -164,4 +170,4 @@ python -m examples.harn_00_project_skeleton
 python -m unittest discover -s tests -v
 ```
 
-各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-15 的 AgentTask 生命周期、TaskStore 与 Worker 解耦见 [`docs/stage_notes/HARN-15.md`](docs/stage_notes/HARN-15.md)。
+各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-16 的调度、重试/恢复/继续区别和副作用幂等见 [`docs/stage_notes/HARN-16.md`](docs/stage_notes/HARN-16.md)。

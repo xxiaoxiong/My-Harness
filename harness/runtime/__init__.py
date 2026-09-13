@@ -36,6 +36,16 @@ from harness.runtime.worker import (
     AgentWorker,
     InvalidWorkerTaskState,
 )
+from harness.runtime.scheduler import (
+    AsyncSleeper,
+    InvalidScheduledTaskState,
+    RetryPolicy,
+    RetryPredicate,
+    SchedulerAlreadyRunningError,
+    SchedulerError,
+    TaskScheduler,
+    TaskSubmissionConflictError,
+)
 
 __all__ = [
     "AgentDecision",
@@ -45,6 +55,7 @@ __all__ = [
     "AgentRunStatus",
     "AgentTask",
     "AgentWorker",
+    "AsyncSleeper",
     "CHECKPOINT_SCHEMA_VERSION",
     "Checkpoint",
     "CheckpointContext",
@@ -57,13 +68,20 @@ __all__ = [
     "InvalidCheckpointTaskId",
     "InvalidAgentAction",
     "InvalidAgentDecision",
+    "InvalidScheduledTaskState",
     "InvalidTaskTransition",
     "InvalidWorkerTaskState",
     "JsonCheckpointStore",
+    "RetryPolicy",
+    "RetryPredicate",
+    "SchedulerAlreadyRunningError",
+    "SchedulerError",
     "TaskNotFoundError",
+    "TaskScheduler",
     "TaskStatus",
     "TaskStore",
     "TaskStoreError",
+    "TaskSubmissionConflictError",
     "ToolAgentLoop",
     "ToolAgentRunResult",
 ]

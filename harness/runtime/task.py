@@ -27,6 +27,7 @@ _TRANSITIONS: dict[TaskStatus, frozenset[TaskStatus]] = {
             TaskStatus.SUSPENDED,
             TaskStatus.COMPLETED,
             TaskStatus.FAILED,
+            TaskStatus.CANCELLED,
         }
     ),
     TaskStatus.WAITING: frozenset({TaskStatus.RUNNING, TaskStatus.CANCELLED}),
@@ -46,6 +47,9 @@ class AgentTask:
     status: TaskStatus
     created_at: datetime
     updated_at: datetime
+    priority: int = 0
+    attempts: int = 0
+    idempotency_key: str | None = None
     final_answer: str | None = None
     error: str | None = None
 
@@ -60,6 +64,17 @@ class AgentTask:
             raise ValueError("task timestamps must be timezone-aware")
         if self.updated_at < self.created_at:
             raise ValueError("task updated_at must not be before created_at")
+        if isinstance(self.priority, bool) or not isinstance(self.priority, int):
+            raise TypeError("task priority must be an integer")
+        if isinstance(self.attempts, bool) or not isinstance(self.attempts, int):
+            raise TypeError("task attempts must be an integer")
+        if self.attempts < 0:
+            raise ValueError("task attempts must not be negative")
+        if self.idempotency_key is not None and (
+            not isinstance(self.idempotency_key, str)
+            or not self.idempotency_key.strip()
+        ):
+            raise ValueError("task idempotency_key must be nonempty or null")
         if self.final_answer is not None and (
             not isinstance(self.final_answer, str) or not self.final_answer.strip()
         ):
@@ -83,13 +98,26 @@ class AgentTask:
 
         object.__setattr__(self, "task_id", self.task_id.strip())
         object.__setattr__(self, "goal", self.goal.strip())
+        if self.idempotency_key is not None:
+            object.__setattr__(
+                self,
+                "idempotency_key",
+                self.idempotency_key.strip(),
+            )
         if self.final_answer is not None:
             object.__setattr__(self, "final_answer", self.final_answer.strip())
         if self.error is not None:
             object.__setattr__(self, "error", self.error.strip())
 
     @classmethod
-    def create(cls, goal: str, *, task_id: str | None = None) -> AgentTask:
+    def create(
+        cls,
+        goal: str,
+        *,
+        task_id: str | None = None,
+        priority: int = 0,
+        idempotency_key: str | None = None,
+    ) -> AgentTask:
         now = datetime.now(UTC)
         return cls(
             task_id=task_id if task_id is not None else uuid4().hex,
@@ -97,6 +125,8 @@ class AgentTask:
             status=TaskStatus.PENDING,
             created_at=now,
             updated_at=now,
+            priority=priority,
+            idempotency_key=idempotency_key,
         )
 
     @property
@@ -127,6 +157,17 @@ class AgentTask:
 
     def mark_cancelled(self) -> AgentTask:
         return self._transition(TaskStatus.CANCELLED)
+
+    def record_attempt(self) -> AgentTask:
+        if self.status is not TaskStatus.RUNNING:
+            raise InvalidTaskTransition(
+                f"cannot record attempt for {self.status.value} task"
+            )
+        return replace(
+            self,
+            attempts=self.attempts + 1,
+            updated_at=datetime.now(UTC),
+        )
 
     def _transition(
         self,

@@ -19,7 +19,12 @@ from harness.policy import (
 )
 from harness.runtime.checkpoint import Checkpoint, CheckpointStore
 from harness.state import AgentState, AgentStatus
-from harness.tools import ToolCall, ToolExecutor, ToolResult
+from harness.tools import (
+    ToolCall,
+    ToolExecutor,
+    ToolResult,
+    tool_call_idempotency_key,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -281,7 +286,10 @@ class ToolAgentLoop:
                         )
                     )
                     phase = "tool_call"
-                    tool_result = await self._tool_executor.execute(tool_call)
+                    tool_result = await self._tool_executor.execute(
+                        tool_call,
+                        idempotency_key=self._idempotency_key(state, tool_call),
+                    )
                     phase = "after_tool_call"
                     await self._hooks.after_tool_call(
                         self._hook_context(
@@ -352,7 +360,10 @@ class ToolAgentLoop:
                     )
                 )
                 phase = "tool_call"
-                tool_result = await self._tool_executor.execute(call)
+                tool_result = await self._tool_executor.execute(
+                    call,
+                    idempotency_key=self._idempotency_key(state, call),
+                )
                 phase = "after_tool_call"
                 await self._hooks.after_tool_call(
                     self._hook_context(
@@ -415,6 +426,15 @@ class ToolAgentLoop:
             tool_result=tool_result,
             error=error,
         )
+
+    def _idempotency_key(
+        self,
+        state: AgentState,
+        call: ToolCall,
+    ) -> str | None:
+        if self._tool_executor.idempotency_enabled:
+            return tool_call_idempotency_key(state.task_id, call)
+        return None
 
     async def _notify_error(
         self,

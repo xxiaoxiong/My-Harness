@@ -8,6 +8,14 @@ from harness.tools.calculator import (
     calculate,
 )
 from harness.tools.executor import ToolExecutor
+from harness.tools.idempotency import (
+    IdempotencyConflictError,
+    IdempotencyRecord,
+    IdempotencyStore,
+    IdempotencyStoreError,
+    InMemoryIdempotencyStore,
+    tool_call_idempotency_key,
+)
 from harness.tools.delete_file import (
     DELETE_FILE_NAME,
     DeleteFileError,
@@ -29,6 +37,11 @@ __all__ = [
     "DeleteFileError",
     "DeleteFileTool",
     "DuplicateToolError",
+    "IdempotencyConflictError",
+    "IdempotencyRecord",
+    "IdempotencyStore",
+    "IdempotencyStoreError",
+    "InMemoryIdempotencyStore",
     "SHELL_NAME",
     "ShellTool",
     "ShellToolError",
@@ -41,4 +54,5 @@ __all__ = [
     "ToolResult",
     "ToolSchema",
     "calculate",
+    "tool_call_idempotency_key",
 ]

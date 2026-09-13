@@ -18,7 +18,7 @@ from harness.hooks import Hook, HookManager
 from harness.model import ModelProvider
 from harness.policy import CompositePolicyEngine, PolicyEngine
 from harness.runtime import CheckpointStore, ToolAgentLoop
-from harness.tools import Tool, ToolExecutor, ToolRegistry
+from harness.tools import IdempotencyStore, Tool, ToolExecutor, ToolRegistry
 
 
 class Harness:
@@ -28,15 +28,22 @@ class Harness:
         self,
         *,
         base_system_prompt: str = DEFAULT_TOOL_AGENT_SYSTEM_PROMPT,
+        idempotency_store: IdempotencyStore | None = None,
     ) -> None:
         if not isinstance(base_system_prompt, str) or not base_system_prompt.strip():
             raise ValueError("base_system_prompt must not be empty")
+        if idempotency_store is not None and not isinstance(
+            idempotency_store,
+            IdempotencyStore,
+        ):
+            raise TypeError("idempotency_store must be an IdempotencyStore or null")
         self._base_system_prompt = base_system_prompt.strip()
         self._tools = ToolRegistry()
         self._hooks = HookManager()
         self._prompt_fragments: dict[str, PromptFragment] = {}
         self._policies: list[PolicyEngine] = []
         self._plugins: dict[str, Plugin] = {}
+        self._idempotency_store = idempotency_store
         self._sealed = False
 
     @property
@@ -127,7 +134,10 @@ class Harness:
             provider,
             model=model,
             max_steps=max_steps,
-            tool_executor=ToolExecutor(self._tools),
+            tool_executor=ToolExecutor(
+                self._tools,
+                idempotency_store=self._idempotency_store,
+            ),
             context_builder=context_builder,
             checkpoint_store=checkpoint_store,
             hook_manager=self._hooks,

@@ -27,17 +27,42 @@ class AgentWorker:
         self._store = store
         self._loop_factory = loop_factory
 
-    async def execute(self, task_id: str) -> AgentTask:
-        """Start a pending Task and persist its externally visible outcome."""
+    @property
+    def store(self) -> TaskStore:
+        return self._store
+
+    def begin(self, task_id: str) -> AgentTask:
+        """Claim one pending Task for explicit execution."""
 
         task = self._store.get(task_id)
         if task.status is not TaskStatus.PENDING:
             raise InvalidWorkerTaskState(
-                f"worker can execute only pending tasks: {task.status.value}"
+                f"worker can begin only pending tasks: {task.status.value}"
             )
         running = task.mark_running()
         self._store.update(running)
-        return await self._invoke(running, resume_approval=None)
+        return running
+
+    async def execute(self, task_id: str) -> AgentTask:
+        """Start a pending Task and persist its externally visible outcome."""
+
+        self.begin(task_id)
+        try:
+            return await self.run_attempt(task_id)
+        except Exception as error:
+            return self.fail(task_id, error)
+
+    async def run_attempt(self, task_id: str) -> AgentTask:
+        """Run one attempt, leaving failure classification to the caller."""
+
+        running = self._store.get(task_id)
+        if running.status is not TaskStatus.RUNNING:
+            raise InvalidWorkerTaskState(
+                f"worker attempt requires a running task: {running.status.value}"
+            )
+        attempted = running.record_attempt()
+        self._store.update(attempted)
+        return await self._invoke(attempted, resume_approval=None)
 
     async def resume(self, task_id: str, *, approve: bool) -> AgentTask:
         """Resolve a waiting approval and continue from its Agent checkpoint."""
@@ -51,7 +76,37 @@ class AgentWorker:
             )
         running = task.mark_running()
         self._store.update(running)
-        return await self._invoke(running, resume_approval=approve)
+        attempted = running.record_attempt()
+        self._store.update(attempted)
+        try:
+            return await self._invoke(attempted, resume_approval=approve)
+        except Exception as error:
+            return self.fail(task_id, error)
+
+    def fail(self, task_id: str, error: Exception | str) -> AgentTask:
+        """Persist final failure after a caller decides not to retry."""
+
+        running = self._store.get(task_id)
+        if running.status is not TaskStatus.RUNNING:
+            raise InvalidWorkerTaskState(
+                f"worker can fail only running tasks: {running.status.value}"
+            )
+        message = str(error).strip() or type(error).__name__
+        failed = running.mark_failed(message)
+        self._store.update(failed)
+        return failed
+
+    def cancel(self, task_id: str) -> AgentTask:
+        """Persist cancellation for a nonterminal Task."""
+
+        task = self._store.get(task_id)
+        if task.terminal:
+            raise InvalidWorkerTaskState(
+                f"worker cannot cancel terminal task: {task.status.value}"
+            )
+        cancelled = task.mark_cancelled()
+        self._store.update(cancelled)
+        return cancelled
 
     async def _invoke(
         self,
@@ -59,24 +114,20 @@ class AgentWorker:
         *,
         resume_approval: bool | None,
     ) -> AgentTask:
-        try:
-            loop = self._loop_factory(running)
-            if not isinstance(loop, ToolAgentLoop):
-                raise TypeError("loop_factory must return a ToolAgentLoop")
-            if resume_approval is None:
-                result = await loop.run(
-                    running.goal,
-                    task_id=running.task_id,
-                )
-            else:
-                result = await loop.resume(
-                    running.task_id,
-                    approve=resume_approval,
-                )
-            outcome = _task_from_result(running, result)
-        except Exception as error:
-            message = str(error).strip() or type(error).__name__
-            outcome = running.mark_failed(message)
+        loop = self._loop_factory(running)
+        if not isinstance(loop, ToolAgentLoop):
+            raise TypeError("loop_factory must return a ToolAgentLoop")
+        if resume_approval is None:
+            result = await loop.run(
+                running.goal,
+                task_id=running.task_id,
+            )
+        else:
+            result = await loop.resume(
+                running.task_id,
+                approve=resume_approval,
+            )
+        outcome = _task_from_result(running, result)
         self._store.update(outcome)
         return outcome
 
