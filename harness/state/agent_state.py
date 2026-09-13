@@ -144,6 +144,19 @@ class AgentState:
             {"name": call.name, "arguments": dict(call.arguments)},
         )
 
+    def record_permission_decision(self, call: ToolCall, decision: str) -> None:
+        """Record the Runtime's decision separately from the model's request."""
+
+        self._require_running()
+        if not isinstance(call, ToolCall):
+            raise TypeError("call must be a ToolCall")
+        if not isinstance(decision, str) or not decision.strip():
+            raise ValueError("decision must not be empty")
+        self._append_event(
+            TrajectoryEventKind.PERMISSION_DECISION,
+            {"tool": call.name, "decision": decision.strip()},
+        )
+
     def record_tool_result(self, result: ToolResult) -> None:
         """Add an execution observation to state and trajectory."""
 

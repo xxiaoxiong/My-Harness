@@ -81,6 +81,7 @@ class ToolAgentLoopTests(unittest.IsolatedAsyncioTestCase):
             [
                 TrajectoryEventKind.MODEL_CALL,
                 TrajectoryEventKind.TOOL_CALL,
+                TrajectoryEventKind.PERMISSION_DECISION,
                 TrajectoryEventKind.TOOL_RESULT,
                 TrajectoryEventKind.MODEL_CALL,
                 TrajectoryEventKind.FINAL_ANSWER,

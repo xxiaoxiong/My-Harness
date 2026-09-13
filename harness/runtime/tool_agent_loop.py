@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -11,6 +10,13 @@ from typing import Any
 from harness.context import ContextBuilder, ContextBuildResult
 from harness.hooks import HookContext, HookManager
 from harness.model import ModelProvider, ModelRequest, ModelResponse
+from harness.policy import (
+    AllowAllPolicyEngine,
+    InvalidPermissionDecision,
+    PermissionDecision,
+    PermissionRequest,
+    PolicyEngine,
+)
 from harness.runtime.checkpoint import Checkpoint, CheckpointStore
 from harness.state import AgentState, AgentStatus
 from harness.tools import ToolCall, ToolExecutor, ToolResult
@@ -77,8 +83,8 @@ class ToolAgentLoop:
         tool_executor: ToolExecutor,
         context_builder: ContextBuilder,
         checkpoint_store: CheckpointStore | None = None,
-        approval_required_tools: Collection[str] = (),
         hook_manager: HookManager | None = None,
+        policy_engine: PolicyEngine | None = None,
     ) -> None:
         if not isinstance(model, str):
             raise TypeError("model must be a string")
@@ -99,23 +105,8 @@ class ToolAgentLoop:
             raise TypeError("checkpoint_store must be a CheckpointStore or null")
         if hook_manager is not None and not isinstance(hook_manager, HookManager):
             raise TypeError("hook_manager must be a HookManager or null")
-        if isinstance(approval_required_tools, str) or not isinstance(
-            approval_required_tools, Collection
-        ):
-            raise TypeError("approval_required_tools must be a collection of names")
-        if not all(
-            isinstance(name, str) and name.strip()
-            for name in approval_required_tools
-        ):
-            raise ValueError("approval-required tool names must not be empty")
-
-        approval_names = frozenset(
-            name.strip() for name in approval_required_tools
-        )
-        if approval_names and checkpoint_store is None:
-            raise ValueError(
-                "approval-required tools need a checkpoint_store"
-            )
+        if policy_engine is not None and not isinstance(policy_engine, PolicyEngine):
+            raise TypeError("policy_engine must be a PolicyEngine or null")
 
         self._provider = provider
         self._model = normalized_model
@@ -123,8 +114,8 @@ class ToolAgentLoop:
         self._tool_executor = tool_executor
         self._context_builder = context_builder
         self._checkpoint_store = checkpoint_store
-        self._approval_required_tools = approval_names
         self._hooks = hook_manager or HookManager()
+        self._policy = policy_engine or AllowAllPolicyEngine()
 
     async def run(
         self,
@@ -241,7 +232,26 @@ class ToolAgentLoop:
 
                 tool_call = action
                 state.record_tool_call(tool_call)
-                if tool_call.name in self._approval_required_tools:
+                phase = "policy_decision"
+                permission = await self._policy.decide(
+                    PermissionRequest(
+                        task_id=state.task_id,
+                        goal=state.goal,
+                        step=state.current_step,
+                        tool_call=tool_call,
+                    )
+                )
+                if not isinstance(permission, PermissionDecision):
+                    raise InvalidPermissionDecision(
+                        "PolicyEngine.decide must return a PermissionDecision"
+                    )
+                state.record_permission_decision(tool_call, permission.value)
+
+                if permission is PermissionDecision.REQUIRE_APPROVAL:
+                    if self._checkpoint_store is None:
+                        raise RuntimeError(
+                            "approval-required decision needs a checkpoint_store"
+                        )
                     state.interrupt_for_approval(tool_call)
                     phase = "checkpoint"
                     self._save_checkpoint(state, context)
@@ -255,25 +265,32 @@ class ToolAgentLoop:
                     )
                     return ToolAgentRunResult(state=state)
 
-                phase = "before_tool_call"
-                await self._hooks.before_tool_call(
-                    self._hook_context(
-                        state,
-                        phase=phase,
-                        tool_call=tool_call,
+                if permission is PermissionDecision.DENY:
+                    tool_result = ToolResult(
+                        name=tool_call.name,
+                        arguments=tool_call.arguments,
+                        error="tool call denied by policy",
                     )
-                )
-                phase = "tool_call"
-                tool_result = await self._tool_executor.execute(tool_call)
-                phase = "after_tool_call"
-                await self._hooks.after_tool_call(
-                    self._hook_context(
-                        state,
-                        phase=phase,
-                        tool_call=tool_call,
-                        tool_result=tool_result,
+                else:
+                    phase = "before_tool_call"
+                    await self._hooks.before_tool_call(
+                        self._hook_context(
+                            state,
+                            phase=phase,
+                            tool_call=tool_call,
+                        )
                     )
-                )
+                    phase = "tool_call"
+                    tool_result = await self._tool_executor.execute(tool_call)
+                    phase = "after_tool_call"
+                    await self._hooks.after_tool_call(
+                        self._hook_context(
+                            state,
+                            phase=phase,
+                            tool_call=tool_call,
+                            tool_result=tool_result,
+                        )
+                    )
                 phase = "record_tool_result"
                 state.record_tool_result(tool_result)
                 state.append_message(

@@ -13,6 +13,7 @@ from harness.model import (
     ModelResponse,
 )
 from harness.runtime import JsonCheckpointStore, ToolAgentLoop
+from harness.policy import PermissionDecision, StaticPolicyEngine
 from harness.state import AgentStatus, TrajectoryEventKind
 from harness.tools import (
     DELETE_FILE_NAME,
@@ -84,27 +85,33 @@ def _loop(
         tool_executor=ToolExecutor(registry),
         context_builder=ContextBuilder(max_context_chars=4_000),
         checkpoint_store=store,
-        approval_required_tools={DELETE_FILE_NAME},
+        policy_engine=StaticPolicyEngine(
+            {DELETE_FILE_NAME: PermissionDecision.REQUIRE_APPROVAL}
+        ),
         hook_manager=hook_manager,
     )
 
 
 class InterruptResumeTests(unittest.IsolatedAsyncioTestCase):
-    def test_approval_interrupt_requires_checkpoint_persistence(self) -> None:
+    async def test_approval_interrupt_requires_checkpoint_persistence(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             registry = ToolRegistry()
             registry.register(DeleteFileTool(root))
 
-            with self.assertRaisesRegex(ValueError, "need a checkpoint_store"):
-                ToolAgentLoop(
-                    SequenceProvider(),
-                    model="interrupt-demo-model",
-                    max_steps=3,
-                    tool_executor=ToolExecutor(registry),
-                    context_builder=ContextBuilder(max_context_chars=4_000),
-                    approval_required_tools={DELETE_FILE_NAME},
-                )
+            loop = ToolAgentLoop(
+                SequenceProvider(_delete_call("anything.txt")),
+                model="interrupt-demo-model",
+                max_steps=3,
+                tool_executor=ToolExecutor(registry),
+                context_builder=ContextBuilder(max_context_chars=4_000),
+                policy_engine=StaticPolicyEngine(
+                    {DELETE_FILE_NAME: PermissionDecision.REQUIRE_APPROVAL}
+                ),
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "needs a checkpoint_store"):
+                await loop.run("Delete a file.")
 
     async def test_dangerous_tool_waits_then_executes_after_approval(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -166,6 +173,7 @@ class InterruptResumeTests(unittest.IsolatedAsyncioTestCase):
                 [
                     TrajectoryEventKind.MODEL_CALL,
                     TrajectoryEventKind.TOOL_CALL,
+                    TrajectoryEventKind.PERMISSION_DECISION,
                     TrajectoryEventKind.INTERRUPT,
                     TrajectoryEventKind.RESUME,
                     TrajectoryEventKind.TOOL_RESULT,
@@ -201,7 +209,7 @@ class InterruptResumeTests(unittest.IsolatedAsyncioTestCase):
             )
             observation = json.loads(provider.requests[0].messages[3].content)
             self.assertEqual(observation["error"], "tool call rejected by user")
-            resume_event = completed.state.trajectory[3]
+            resume_event = completed.state.trajectory[4]
             self.assertEqual(resume_event.kind, TrajectoryEventKind.RESUME)
             self.assertFalse(resume_event.details["approved"])
 

@@ -135,7 +135,7 @@ class JsonCheckpointStoreTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(payload["schema_version"], 2)
             self.assertEqual(payload["status"], "finished")
             self.assertEqual(payload["step"], 5)
-            self.assertEqual(len(payload["trajectory"]), 14)
+            self.assertEqual(len(payload["trajectory"]), 18)
             self.assertEqual(
                 sorted(path.name for path in Path(directory).iterdir()),
                 ["round-trip-task.json"],
@@ -157,7 +157,7 @@ class JsonCheckpointStoreTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(durable.step, 3)
             self.assertEqual(len(durable.state.tool_calls), 3)
             self.assertEqual(len(durable.state.tool_results), 3)
-            self.assertEqual(len(durable.state.trajectory), 9)
+            self.assertEqual(len(durable.state.trajectory), 12)
 
             resumed_provider = StepAwareProvider()
             result = await _loop(resumed_provider, store).resume("resume-task")

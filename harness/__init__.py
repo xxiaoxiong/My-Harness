@@ -1,6 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-10 stage.
+"""Educational Agent Harness package through the completed HARN-11 stage.
 
-The public API now exposes lifecycle Hooks for cross-cutting behavior.
+The public API now separates model Tool intent from Runtime permission.
 """
 
 from harness.core import (
@@ -36,6 +36,14 @@ from harness.model import (
     ModelResponse,
     OpenAICompatibleProvider,
     TokenUsage,
+)
+from harness.policy import (
+    AllowAllPolicyEngine,
+    InvalidPermissionDecision,
+    PermissionDecision,
+    PermissionRequest,
+    PolicyEngine,
+    StaticPolicyEngine,
 )
 from harness.state import (
     AgentState,
@@ -88,6 +96,7 @@ __all__ = [
     "AgentRunStatus",
     "AgentState",
     "AgentStatus",
+    "AllowAllPolicyEngine",
     "CALCULATOR_NAME",
     "DELETE_FILE_NAME",
     "CHECKPOINT_SCHEMA_VERSION",
@@ -116,6 +125,7 @@ __all__ = [
     "InvalidAgentAction",
     "InvalidAgentDecision",
     "InvalidCheckpointTaskId",
+    "InvalidPermissionDecision",
     "JsonCheckpointStore",
     "LogLevel",
     "LoggingHook",
@@ -126,8 +136,12 @@ __all__ = [
     "ModelResponse",
     "MetricsHook",
     "OpenAICompatibleProvider",
+    "PermissionDecision",
+    "PermissionRequest",
+    "PolicyEngine",
     "SUMMARY_TRUNCATION_MARKER",
     "SimpleHistorySummarizer",
+    "StaticPolicyEngine",
     "TokenUsage",
     "Tool",
     "ToolAgentLoop",

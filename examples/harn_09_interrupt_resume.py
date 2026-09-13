@@ -16,6 +16,7 @@ from harness.model import (
     ModelResponse,
 )
 from harness.runtime import JsonCheckpointStore, ToolAgentLoop
+from harness.policy import PermissionDecision, StaticPolicyEngine
 from harness.tools import (
     DELETE_FILE_NAME,
     DeleteFileTool,
@@ -83,7 +84,9 @@ def _build_loop(task_id: str) -> ToolAgentLoop:
         tool_executor=ToolExecutor(registry),
         context_builder=ContextBuilder(max_context_chars=4_000),
         checkpoint_store=JsonCheckpointStore(CHECKPOINT_DIRECTORY),
-        approval_required_tools={DELETE_FILE_NAME},
+        policy_engine=StaticPolicyEngine(
+            {DELETE_FILE_NAME: PermissionDecision.REQUIRE_APPROVAL}
+        ),
     )
 
 

@@ -16,6 +16,7 @@ class TrajectoryEventKind(str, Enum):
 
     MODEL_CALL = "model_call"
     TOOL_CALL = "tool_call"
+    PERMISSION_DECISION = "permission_decision"
     TOOL_RESULT = "tool_result"
     INTERRUPT = "interrupt"
     RESUME = "resume"
