@@ -1,6 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-07 stage.
+"""Educational Agent Harness package through the completed HARN-08 stage.
 
-The public API now compacts old context while preserving full Agent state.
+The public API now persists recoverable Agent checkpoints between steps.
 """
 
 from harness.core import (
@@ -39,8 +39,17 @@ from harness.runtime import (
     AgentLoop,
     AgentRunResult,
     AgentRunStatus,
+    CHECKPOINT_SCHEMA_VERSION,
+    Checkpoint,
+    CheckpointContext,
+    CheckpointCorruptError,
+    CheckpointError,
+    CheckpointNotFoundError,
+    CheckpointStore,
     InvalidAgentAction,
     InvalidAgentDecision,
+    InvalidCheckpointTaskId,
+    JsonCheckpointStore,
     ToolAgentLoop,
     ToolAgentRunResult,
 )
@@ -68,8 +77,15 @@ __all__ = [
     "AgentState",
     "AgentStatus",
     "CALCULATOR_NAME",
+    "CHECKPOINT_SCHEMA_VERSION",
     "CalculatorError",
     "CalculatorTool",
+    "Checkpoint",
+    "CheckpointContext",
+    "CheckpointCorruptError",
+    "CheckpointError",
+    "CheckpointNotFoundError",
+    "CheckpointStore",
     "ContextBuildResult",
     "ContextBuilder",
     "DEFAULT_TOOL_AGENT_SYSTEM_PROMPT",
@@ -79,6 +95,8 @@ __all__ = [
     "HistorySummarizer",
     "InvalidAgentAction",
     "InvalidAgentDecision",
+    "InvalidCheckpointTaskId",
+    "JsonCheckpointStore",
     "LogLevel",
     "MessageRole",
     "ModelMessage",

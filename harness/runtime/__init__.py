@@ -7,6 +7,17 @@ from harness.runtime.agent_loop import (
     AgentRunStatus,
     InvalidAgentDecision,
 )
+from harness.runtime.checkpoint import (
+    CHECKPOINT_SCHEMA_VERSION,
+    Checkpoint,
+    CheckpointContext,
+    CheckpointCorruptError,
+    CheckpointError,
+    CheckpointNotFoundError,
+    CheckpointStore,
+    InvalidCheckpointTaskId,
+)
+from harness.runtime.json_checkpoint import JsonCheckpointStore
 from harness.runtime.tool_agent_loop import (
     InvalidAgentAction,
     ToolAgentLoop,
@@ -18,8 +29,17 @@ __all__ = [
     "AgentLoop",
     "AgentRunResult",
     "AgentRunStatus",
+    "CHECKPOINT_SCHEMA_VERSION",
+    "Checkpoint",
+    "CheckpointContext",
+    "CheckpointCorruptError",
+    "CheckpointError",
+    "CheckpointNotFoundError",
+    "CheckpointStore",
+    "InvalidCheckpointTaskId",
     "InvalidAgentAction",
     "InvalidAgentDecision",
+    "JsonCheckpointStore",
     "ToolAgentLoop",
     "ToolAgentRunResult",
 ]

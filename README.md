@@ -2,7 +2,7 @@
 
 这是一个按照 `docs/agent_harness_progressive_learning_roadmap.md` 逐步构建 Agent Harness 的学习项目。
 
-当前进度：**HARN-07 — Context Compaction**。
+当前进度：**HARN-08 — Checkpoint**。
 
 ## 按阶段独立学习
 
@@ -60,9 +60,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapsho
 - 独立组装 System、Goal、History、Tool Definitions 和 Current State 的 `ContextBuilder`；
 - 基于 `max_context_chars` 的硬预算和简单截断元数据；
 - `Old History → Summary + Recent History` 的 Context Compaction；
-- 保留完整 State、并显式记录摘要范围与信息损失。
+- 保留完整 State、并显式记录摘要范围与信息损失；
+- 包含 task、status、step、State、Trajectory 与 Context metadata 的版本化 Checkpoint；
+- 每个完整 step 后原子保存 JSON 恢复点；
+- 通过 `task_id` 加载最后恢复点并继续执行。
 
-本阶段还没有持久化 Checkpoint；该能力会在下一阶段加入。
+本阶段还没有主动 Interrupt 和等待批准状态；该能力会在下一阶段加入。
 
 ## 运行 Demo
 
@@ -97,6 +100,8 @@ python -m examples.harn_04_tool_registry
 python -m examples.harn_05_agent_state
 python -m examples.harn_06_context_engine
 python -m examples.harn_07_context_compaction
+python -m examples.harn_08_checkpoint_demo harn-08-demo
+python resume.py harn-08-demo
 ```
 
 可通过环境变量观察配置生效：
@@ -119,4 +124,4 @@ python -m examples.harn_00_project_skeleton
 python -m unittest discover -s tests -v
 ```
 
-各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-07 的摘要压缩与信息损失见 [`docs/stage_notes/HARN-07.md`](docs/stage_notes/HARN-07.md)。
+各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-08 的持久化格式、原子写入与恢复语义见 [`docs/stage_notes/HARN-08.md`](docs/stage_notes/HARN-08.md)。

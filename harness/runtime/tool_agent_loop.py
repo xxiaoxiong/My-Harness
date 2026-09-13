@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
-from harness.context import ContextBuilder
+from harness.context import ContextBuilder, ContextBuildResult
 from harness.model import ModelProvider, ModelRequest
+from harness.runtime.checkpoint import Checkpoint, CheckpointStore
 from harness.state import AgentState, AgentStatus
 from harness.tools import ToolCall, ToolExecutor, ToolResult
 
@@ -68,6 +70,7 @@ class ToolAgentLoop:
         max_steps: int,
         tool_executor: ToolExecutor,
         context_builder: ContextBuilder,
+        checkpoint_store: CheckpointStore | None = None,
     ) -> None:
         if not isinstance(model, str):
             raise TypeError("model must be a string")
@@ -82,12 +85,17 @@ class ToolAgentLoop:
             raise TypeError("tool_executor must be a ToolExecutor")
         if not isinstance(context_builder, ContextBuilder):
             raise TypeError("context_builder must be a ContextBuilder")
+        if checkpoint_store is not None and not isinstance(
+            checkpoint_store, CheckpointStore
+        ):
+            raise TypeError("checkpoint_store must be a CheckpointStore or null")
 
         self._provider = provider
         self._model = normalized_model
         self._max_steps = max_steps
         self._tool_executor = tool_executor
         self._context_builder = context_builder
+        self._checkpoint_store = checkpoint_store
 
     async def run(
         self,
@@ -108,8 +116,30 @@ class ToolAgentLoop:
             task_id=task_id,
             messages=[],
         )
+        return await self._run_state(state)
 
-        for _ in range(self._max_steps):
+    async def resume(self, task_id: str) -> ToolAgentRunResult:
+        """Load the latest durable state for a task and continue it."""
+
+        if self._checkpoint_store is None:
+            raise RuntimeError("resume requires a checkpoint_store")
+        checkpoint = self._checkpoint_store.load(task_id)
+        if checkpoint.state.status is not AgentStatus.RUNNING:
+            return ToolAgentRunResult(state=checkpoint.state)
+        if checkpoint.state.current_step >= self._max_steps:
+            checkpoint.state.reach_max_steps()
+            self._checkpoint_store.save(
+                Checkpoint(
+                    state=checkpoint.state,
+                    context=checkpoint.context,
+                    saved_at=datetime.now(UTC),
+                )
+            )
+            return ToolAgentRunResult(state=checkpoint.state)
+        return await self._run_state(checkpoint.state)
+
+    async def _run_state(self, state: AgentState) -> ToolAgentRunResult:
+        while state.current_step < self._max_steps:
             state.begin_model_step()
             context = self._context_builder.build(
                 state,
@@ -127,6 +157,7 @@ class ToolAgentLoop:
 
             if isinstance(action, _FinalAnswer):
                 state.finish(action.answer)
+                self._save_checkpoint(state, context)
                 return ToolAgentRunResult(state=state)
 
             state.record_tool_call(action)
@@ -136,8 +167,21 @@ class ToolAgentLoop:
                 self._context_builder.tool_result_message(tool_result)
             )
 
-        state.reach_max_steps()
-        return ToolAgentRunResult(state=state)
+            if state.current_step >= self._max_steps:
+                state.reach_max_steps()
+            self._save_checkpoint(state, context)
+            if state.status is AgentStatus.MAX_STEPS_REACHED:
+                return ToolAgentRunResult(state=state)
+
+        raise RuntimeError("agent loop exited without a terminal state")
+
+    def _save_checkpoint(
+        self,
+        state: AgentState,
+        context: ContextBuildResult,
+    ) -> None:
+        if self._checkpoint_store is not None:
+            self._checkpoint_store.save(Checkpoint.capture(state, context))
 
 
 def _parse_action(output: str) -> ToolCall | _FinalAnswer:
