@@ -9,7 +9,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from harness.context import ContextBuilder, ContextBuildResult
-from harness.model import ModelProvider, ModelRequest
+from harness.hooks import HookContext, HookManager
+from harness.model import ModelProvider, ModelRequest, ModelResponse
 from harness.runtime.checkpoint import Checkpoint, CheckpointStore
 from harness.state import AgentState, AgentStatus
 from harness.tools import ToolCall, ToolExecutor, ToolResult
@@ -77,6 +78,7 @@ class ToolAgentLoop:
         context_builder: ContextBuilder,
         checkpoint_store: CheckpointStore | None = None,
         approval_required_tools: Collection[str] = (),
+        hook_manager: HookManager | None = None,
     ) -> None:
         if not isinstance(model, str):
             raise TypeError("model must be a string")
@@ -95,6 +97,8 @@ class ToolAgentLoop:
             checkpoint_store, CheckpointStore
         ):
             raise TypeError("checkpoint_store must be a CheckpointStore or null")
+        if hook_manager is not None and not isinstance(hook_manager, HookManager):
+            raise TypeError("hook_manager must be a HookManager or null")
         if isinstance(approval_required_tools, str) or not isinstance(
             approval_required_tools, Collection
         ):
@@ -120,6 +124,7 @@ class ToolAgentLoop:
         self._context_builder = context_builder
         self._checkpoint_store = checkpoint_store
         self._approval_required_tools = approval_names
+        self._hooks = hook_manager or HookManager()
 
     async def run(
         self,
@@ -175,43 +180,133 @@ class ToolAgentLoop:
 
     async def _run_state(self, state: AgentState) -> ToolAgentRunResult:
         while state.current_step < self._max_steps:
-            state.begin_model_step()
-            context = self._context_builder.build(
-                state,
-                tool_schemas=self._tool_executor.list_schemas(),
-            )
-            response = await self._provider.generate(
-                ModelRequest(model=self._model, messages=context.messages)
-            )
-            state.record_model_call(
-                response,
-                input_message_count=len(context.messages),
-            )
-            state.append_message(response.message)
-            action = _parse_action(response.message.content)
+            attempted_step = state.current_step + 1
+            phase = "before_step"
+            request: ModelRequest | None = None
+            response: ModelResponse | None = None
+            tool_call: ToolCall | None = None
+            tool_result: ToolResult | None = None
+            try:
+                await self._hooks.before_step(
+                    self._hook_context(
+                        state,
+                        phase=phase,
+                        step=attempted_step,
+                    )
+                )
+                phase = "begin_step"
+                state.begin_model_step()
+                phase = "context_build"
+                context = self._context_builder.build(
+                    state,
+                    tool_schemas=self._tool_executor.list_schemas(),
+                )
+                request = ModelRequest(
+                    model=self._model,
+                    messages=context.messages,
+                )
+                phase = "before_model_call"
+                await self._hooks.before_model_call(
+                    self._hook_context(state, phase=phase, request=request)
+                )
+                phase = "model_call"
+                response = await self._provider.generate(request)
+                phase = "after_model_call"
+                await self._hooks.after_model_call(
+                    self._hook_context(
+                        state,
+                        phase=phase,
+                        request=request,
+                        response=response,
+                    )
+                )
+                phase = "record_model_response"
+                state.record_model_call(
+                    response,
+                    input_message_count=len(context.messages),
+                )
+                state.append_message(response.message)
+                phase = "parse_action"
+                action = _parse_action(response.message.content)
 
-            if isinstance(action, _FinalAnswer):
-                state.finish(action.answer)
+                if isinstance(action, _FinalAnswer):
+                    state.finish(action.answer)
+                    phase = "checkpoint"
+                    self._save_checkpoint(state, context)
+                    phase = "after_step"
+                    await self._hooks.after_step(
+                        self._hook_context(state, phase=phase)
+                    )
+                    return ToolAgentRunResult(state=state)
+
+                tool_call = action
+                state.record_tool_call(tool_call)
+                if tool_call.name in self._approval_required_tools:
+                    state.interrupt_for_approval(tool_call)
+                    phase = "checkpoint"
+                    self._save_checkpoint(state, context)
+                    phase = "after_step"
+                    await self._hooks.after_step(
+                        self._hook_context(
+                            state,
+                            phase=phase,
+                            tool_call=tool_call,
+                        )
+                    )
+                    return ToolAgentRunResult(state=state)
+
+                phase = "before_tool_call"
+                await self._hooks.before_tool_call(
+                    self._hook_context(
+                        state,
+                        phase=phase,
+                        tool_call=tool_call,
+                    )
+                )
+                phase = "tool_call"
+                tool_result = await self._tool_executor.execute(tool_call)
+                phase = "after_tool_call"
+                await self._hooks.after_tool_call(
+                    self._hook_context(
+                        state,
+                        phase=phase,
+                        tool_call=tool_call,
+                        tool_result=tool_result,
+                    )
+                )
+                phase = "record_tool_result"
+                state.record_tool_result(tool_result)
+                state.append_message(
+                    self._context_builder.tool_result_message(tool_result)
+                )
+
+                if state.current_step >= self._max_steps:
+                    state.reach_max_steps()
+                phase = "checkpoint"
                 self._save_checkpoint(state, context)
-                return ToolAgentRunResult(state=state)
-
-            state.record_tool_call(action)
-            if action.name in self._approval_required_tools:
-                state.interrupt_for_approval(action)
-                self._save_checkpoint(state, context)
-                return ToolAgentRunResult(state=state)
-
-            tool_result = await self._tool_executor.execute(action)
-            state.record_tool_result(tool_result)
-            state.append_message(
-                self._context_builder.tool_result_message(tool_result)
-            )
-
-            if state.current_step >= self._max_steps:
-                state.reach_max_steps()
-            self._save_checkpoint(state, context)
-            if state.status is AgentStatus.MAX_STEPS_REACHED:
-                return ToolAgentRunResult(state=state)
+                phase = "after_step"
+                await self._hooks.after_step(
+                    self._hook_context(
+                        state,
+                        phase=phase,
+                        tool_call=tool_call,
+                        tool_result=tool_result,
+                    )
+                )
+                if state.status is AgentStatus.MAX_STEPS_REACHED:
+                    return ToolAgentRunResult(state=state)
+            except Exception as error:
+                await self._notify_error(
+                    state,
+                    error,
+                    phase=phase,
+                    step=attempted_step,
+                    request=request,
+                    response=response,
+                    tool_call=tool_call,
+                    tool_result=tool_result,
+                )
+                raise
 
         raise RuntimeError("agent loop exited without a terminal state")
 
@@ -225,24 +320,112 @@ class ToolAgentLoop:
         if approve is None:
             return ToolAgentRunResult(state=state)
 
-        call = state.resume_from_approval(approved=approve)
-        if approve:
-            tool_result = await self._tool_executor.execute(call)
-        else:
-            tool_result = ToolResult(
-                name=call.name,
-                arguments=call.arguments,
-                error="tool call rejected by user",
+        phase = "resume"
+        call: ToolCall | None = None
+        tool_result: ToolResult | None = None
+        try:
+            call = state.resume_from_approval(approved=approve)
+            if approve:
+                phase = "before_tool_call"
+                await self._hooks.before_tool_call(
+                    self._hook_context(
+                        state,
+                        phase=phase,
+                        tool_call=call,
+                    )
+                )
+                phase = "tool_call"
+                tool_result = await self._tool_executor.execute(call)
+                phase = "after_tool_call"
+                await self._hooks.after_tool_call(
+                    self._hook_context(
+                        state,
+                        phase=phase,
+                        tool_call=call,
+                        tool_result=tool_result,
+                    )
+                )
+            else:
+                tool_result = ToolResult(
+                    name=call.name,
+                    arguments=call.arguments,
+                    error="tool call rejected by user",
+                )
+            phase = "record_tool_result"
+            state.record_tool_result(tool_result)
+            state.append_message(
+                self._context_builder.tool_result_message(tool_result)
             )
-        state.record_tool_result(tool_result)
-        state.append_message(self._context_builder.tool_result_message(tool_result))
 
-        if state.current_step >= self._max_steps:
-            state.reach_max_steps()
-        self._save_checkpoint_with_context(state, checkpoint)
-        if state.status is AgentStatus.MAX_STEPS_REACHED:
-            return ToolAgentRunResult(state=state)
+            if state.current_step >= self._max_steps:
+                state.reach_max_steps()
+            phase = "checkpoint"
+            self._save_checkpoint_with_context(state, checkpoint)
+            if state.status is AgentStatus.MAX_STEPS_REACHED:
+                return ToolAgentRunResult(state=state)
+        except Exception as error:
+            await self._notify_error(
+                state,
+                error,
+                phase=phase,
+                tool_call=call,
+                tool_result=tool_result,
+            )
+            raise
         return await self._run_state(state)
+
+    def _hook_context(
+        self,
+        state: AgentState,
+        *,
+        phase: str,
+        step: int | None = None,
+        request: ModelRequest | None = None,
+        response: ModelResponse | None = None,
+        tool_call: ToolCall | None = None,
+        tool_result: ToolResult | None = None,
+        error: Exception | None = None,
+    ) -> HookContext:
+        return HookContext(
+            task_id=state.task_id,
+            goal=state.goal,
+            step=state.current_step if step is None else step,
+            status=state.status,
+            phase=phase,
+            request=request,
+            response=response,
+            tool_call=tool_call,
+            tool_result=tool_result,
+            error=error,
+        )
+
+    async def _notify_error(
+        self,
+        state: AgentState,
+        error: Exception,
+        *,
+        phase: str,
+        step: int | None = None,
+        request: ModelRequest | None = None,
+        response: ModelResponse | None = None,
+        tool_call: ToolCall | None = None,
+        tool_result: ToolResult | None = None,
+    ) -> None:
+        try:
+            await self._hooks.on_error(
+                self._hook_context(
+                    state,
+                    phase=phase,
+                    step=step,
+                    request=request,
+                    response=response,
+                    tool_call=tool_call,
+                    tool_result=tool_result,
+                    error=error,
+                )
+            )
+        except Exception as hook_error:
+            error.add_note(f"on_error hook also failed: {hook_error}")
 
     def _save_checkpoint(
         self,

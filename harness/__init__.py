@@ -1,6 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-09 stage.
+"""Educational Agent Harness package through the completed HARN-10 stage.
 
-The public API now interrupts risky tools and resumes after a durable decision.
+The public API now exposes lifecycle Hooks for cross-cutting behavior.
 """
 
 from harness.core import (
@@ -18,6 +18,15 @@ from harness.context import (
     ContextBuildResult,
     HistorySummarizer,
     SimpleHistorySummarizer,
+)
+from harness.hooks import (
+    Hook,
+    HookContext,
+    HookExecutionError,
+    HookManager,
+    HookMetrics,
+    LoggingHook,
+    MetricsHook,
 )
 from harness.model import (
     MessageRole,
@@ -99,16 +108,23 @@ __all__ = [
     "Environment",
     "HarnessConfig",
     "HistorySummarizer",
+    "Hook",
+    "HookContext",
+    "HookExecutionError",
+    "HookManager",
+    "HookMetrics",
     "InvalidAgentAction",
     "InvalidAgentDecision",
     "InvalidCheckpointTaskId",
     "JsonCheckpointStore",
     "LogLevel",
+    "LoggingHook",
     "MessageRole",
     "ModelMessage",
     "ModelProvider",
     "ModelRequest",
     "ModelResponse",
+    "MetricsHook",
     "OpenAICompatibleProvider",
     "SUMMARY_TRUNCATION_MARKER",
     "SimpleHistorySummarizer",

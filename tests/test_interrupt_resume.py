@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from harness.context import ContextBuilder
+from harness.hooks import Hook, HookContext, HookManager
 from harness.model import (
     MessageRole,
     ModelMessage,
@@ -44,6 +45,17 @@ class SequenceProvider(ModelProvider):
         )
 
 
+class ToolRecordingHook(Hook):
+    def __init__(self) -> None:
+        self.events: list[str] = []
+
+    async def before_tool_call(self, context: HookContext) -> None:
+        self.events.append("before_tool_call")
+
+    async def after_tool_call(self, context: HookContext) -> None:
+        self.events.append("after_tool_call")
+
+
 def _delete_call(path: str) -> dict[str, object]:
     return {
         "type": "tool_call",
@@ -60,6 +72,8 @@ def _loop(
     provider: ModelProvider,
     store: JsonCheckpointStore,
     file_root: Path,
+    *,
+    hook_manager: HookManager | None = None,
 ) -> ToolAgentLoop:
     registry = ToolRegistry()
     registry.register(DeleteFileTool(file_root))
@@ -71,6 +85,7 @@ def _loop(
         context_builder=ContextBuilder(max_context_chars=4_000),
         checkpoint_store=store,
         approval_required_tools={DELETE_FILE_NAME},
+        hook_manager=hook_manager,
     )
 
 
@@ -97,11 +112,13 @@ class InterruptResumeTests(unittest.IsolatedAsyncioTestCase):
             target = root / "delete-after-approval.txt"
             target.write_text("keep until approved", encoding="utf-8")
             store = JsonCheckpointStore(root / "checkpoints")
+            before_approval_hook = ToolRecordingHook()
 
             waiting = await _loop(
                 SequenceProvider(_delete_call(target.name)),
                 store,
                 root,
+                hook_manager=HookManager([before_approval_hook]),
             ).run("Delete the disposable file.", task_id="approval-task")
 
             self.assertEqual(waiting.status, AgentStatus.WAITING_APPROVAL)
@@ -109,6 +126,7 @@ class InterruptResumeTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(waiting.pending_tool_call.name, DELETE_FILE_NAME)  # type: ignore[union-attr]
             self.assertTrue(target.exists())
             self.assertEqual(len(waiting.state.tool_results), 0)
+            self.assertEqual(before_approval_hook.events, [])
 
             durable = store.load("approval-task")
             self.assertEqual(durable.status, AgentStatus.WAITING_APPROVAL)
@@ -126,16 +144,22 @@ class InterruptResumeTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(target.exists())
 
             resumed_provider = SequenceProvider(_final("The file was deleted."))
+            after_approval_hook = ToolRecordingHook()
             completed = await _loop(
                 resumed_provider,
                 store,
                 root,
+                hook_manager=HookManager([after_approval_hook]),
             ).resume("approval-task", approve=True)
 
             self.assertFalse(target.exists())
             self.assertEqual(completed.status, AgentStatus.FINISHED)
             self.assertEqual(completed.steps_executed, 2)
             self.assertIsNone(completed.pending_tool_call)
+            self.assertEqual(
+                after_approval_hook.events,
+                ["before_tool_call", "after_tool_call"],
+            )
             self.assertEqual(completed.last_tool_result.result, {"deleted": target.name})  # type: ignore[union-attr]
             self.assertEqual(
                 [event.kind for event in completed.state.trajectory],
