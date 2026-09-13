@@ -2,7 +2,7 @@
 
 这是一个按照 `docs/agent_harness_progressive_learning_roadmap.md` 逐步构建 Agent Harness 的学习项目。
 
-当前进度：**HARN-13 — Sandbox**。
+当前进度：**HARN-14 — MCP Adapter**。
 
 ## 按阶段独立学习
 
@@ -85,7 +85,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapsho
 - 进程无关的 `SandboxRequest`、`SandboxResult` 与 `Sandbox` 接口；
 - 带 cwd root、超时、环境和输出上限的 `LocalSandbox`；
 - 只通过 Sandbox 启动进程的 `ShellTool`；
-- Policy 授权与 Sandbox 执行边界的明确分层。
+- Policy 授权与 Sandbox 执行边界的明确分层；
+- 传输无关的 `MCPClient` 端口和 MCP Tool 数据类型；
+- 把远端定义映射为普通 Tool 的 `MCPClientAdapter` / `MCPToolAdapter`；
+- 本地 Tool 与 MCP Tool 共用 Registry、Executor 和 Agent Loop；
+- MCP 远端错误到 Tool observation 的归一化反馈。
 
 `LocalSandbox` 是受控的本机进程边界，不是容器或文件系统 jail；Docker 级隔离尚未实现。
 
@@ -130,6 +134,7 @@ python -m examples.harn_10_hooks
 python -m examples.harn_11_policy_permission
 python -m examples.harn_12_skill_plugin
 python -m examples.harn_13_sandbox
+python -m examples.harn_14_mcp_adapter
 ```
 
 可通过环境变量观察配置生效：
@@ -152,4 +157,4 @@ python -m examples.harn_00_project_skeleton
 python -m unittest discover -s tests -v
 ```
 
-各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-13 的 Sandbox API、LocalSandbox 与权限分层见 [`docs/stage_notes/HARN-13.md`](docs/stage_notes/HARN-13.md)。
+各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-14 的 MCP Client 端口、本地/远端 Tool 统一路径与概念分层见 [`docs/stage_notes/HARN-14.md`](docs/stage_notes/HARN-14.md)。

@@ -1,6 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-13 stage.
+"""Educational Agent Harness package through the completed HARN-14 stage.
 
-The public API now routes process-backed Tools through a bounded Sandbox API.
+Local and MCP Tools now share the same Registry, Executor, and Agent Loop.
 """
 
 from harness.core import (
@@ -36,6 +36,16 @@ from harness.hooks import (
     HookMetrics,
     LoggingHook,
     MetricsHook,
+)
+from harness.mcp import (
+    MCPCallResult,
+    MCPClient,
+    MCPClientAdapter,
+    MCPClientError,
+    MCPProtocolError,
+    MCPToolAdapter,
+    MCPToolDefinition,
+    MCPToolError,
 )
 from harness.model import (
     MessageRole,
@@ -181,6 +191,14 @@ __all__ = [
     "LogLevel",
     "LoggingHook",
     "LocalSandbox",
+    "MCPCallResult",
+    "MCPClient",
+    "MCPClientAdapter",
+    "MCPClientError",
+    "MCPProtocolError",
+    "MCPToolAdapter",
+    "MCPToolDefinition",
+    "MCPToolError",
     "MessageRole",
     "ModelMessage",
     "ModelProvider",
