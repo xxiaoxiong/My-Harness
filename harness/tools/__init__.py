@@ -8,6 +8,15 @@ from harness.tools.calculator import (
     calculate,
 )
 from harness.tools.executor import ToolExecutor
+from harness.tools.filesystem import (
+    READ_FILE_NAME,
+    SEARCH_FILES_NAME,
+    WRITE_FILE_NAME,
+    ReadFileTool,
+    SearchFilesTool,
+    WorkspaceToolError,
+    WriteFileTool,
+)
 from harness.tools.idempotency import (
     IdempotencyConflictError,
     IdempotencyRecord,
@@ -42,6 +51,9 @@ __all__ = [
     "IdempotencyStore",
     "IdempotencyStoreError",
     "InMemoryIdempotencyStore",
+    "READ_FILE_NAME",
+    "ReadFileTool",
+    "SEARCH_FILES_NAME",
     "SHELL_NAME",
     "ShellTool",
     "ShellToolError",
@@ -53,6 +65,10 @@ __all__ = [
     "ToolRegistry",
     "ToolResult",
     "ToolSchema",
+    "WRITE_FILE_NAME",
+    "WorkspaceToolError",
+    "WriteFileTool",
+    "SearchFilesTool",
     "calculate",
     "tool_call_idempotency_key",
 ]

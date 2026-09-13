@@ -11,12 +11,15 @@ from harness.skills.git import (
     GitStatusTool,
     GitToolError,
     InMemoryGitBackend,
+    SandboxGitBackend,
 )
+from harness.skills.coding import CodingSkill
 
 __all__ = [
     "GIT_COMMIT_NAME",
     "GIT_DIFF_NAME",
     "GIT_STATUS_NAME",
+    "CodingSkill",
     "GitBackend",
     "GitCommitTool",
     "GitDiffTool",
@@ -24,4 +27,5 @@ __all__ = [
     "GitStatusTool",
     "GitToolError",
     "InMemoryGitBackend",
+    "SandboxGitBackend",
 ]

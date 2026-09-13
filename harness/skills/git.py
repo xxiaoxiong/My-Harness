@@ -8,6 +8,7 @@ from collections.abc import Iterable, Mapping
 from harness.core import JsonValue
 from harness.extensions import Harness, PromptFragment, Skill
 from harness.policy import PermissionDecision, StaticPolicyEngine
+from harness.sandbox import Sandbox, SandboxError, SandboxRequest, SandboxResult
 from harness.tools import Tool, ToolError, ToolSchema
 
 GIT_STATUS_NAME = "git_status"
@@ -82,6 +83,59 @@ class InMemoryGitBackend(GitBackend):
             "commit_id": f"demo-{len(self._commits):04d}",
             "message": message,
         }
+
+
+class SandboxGitBackend(GitBackend):
+    """Read Git status/diff through Sandbox; intentionally refuse commits."""
+
+    def __init__(self, sandbox: Sandbox, *, cwd: str = ".") -> None:
+        if not isinstance(sandbox, Sandbox):
+            raise TypeError("sandbox must be a Sandbox")
+        if not isinstance(cwd, str) or not cwd.strip():
+            raise ValueError("cwd must not be empty")
+        self._sandbox = sandbox
+        self._cwd = cwd.strip()
+
+    async def status(self) -> JsonValue:
+        result = await self._run("git status --short --branch")
+        lines = result.stdout.splitlines()
+        branch = lines[0][3:] if lines and lines[0].startswith("## ") else None
+        changes = lines[1:] if branch is not None else lines
+        return {
+            "branch": branch,
+            "changed_files": changes,
+            "clean": not changes,
+        }
+
+    async def diff(self, *, staged: bool) -> JsonValue:
+        command = (
+            "git diff --cached --no-ext-diff"
+            if staged
+            else "git diff --no-ext-diff"
+        )
+        result = await self._run(command)
+        return {
+            "staged": staged,
+            "diff": result.stdout,
+            "output_truncated": result.output_truncated,
+        }
+
+    async def commit(self, message: str) -> JsonValue:
+        raise GitToolError("SandboxGitBackend is read-only and cannot commit")
+
+    async def _run(self, command: str) -> SandboxResult:
+        try:
+            result = await self._sandbox.execute(
+                SandboxRequest(command=command, cwd=self._cwd)
+            )
+        except SandboxError as error:
+            raise GitToolError(f"Git Sandbox failed: {error}") from error
+        if result.timed_out:
+            raise GitToolError("Git command timed out")
+        if result.exit_code != 0:
+            detail = result.stderr.strip() or result.stdout.strip()
+            raise GitToolError(f"Git command failed: {detail}")
+        return result
 
 
 class GitStatusTool(Tool):

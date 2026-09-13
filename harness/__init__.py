@@ -1,6 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-17 stage.
+"""Educational Agent Harness package through the completed HARN-18 stage.
 
-Structured traces now explain Task, Agent, Model, and Tool behavior.
+The final Mini Coding Agent composes every earlier Harness mechanism.
 """
 
 from harness.core import (
@@ -82,6 +82,7 @@ from harness.policy import (
     StaticPolicyEngine,
 )
 from harness.skills import (
+    CodingSkill,
     GIT_COMMIT_NAME,
     GIT_DIFF_NAME,
     GIT_STATUS_NAME,
@@ -92,6 +93,7 @@ from harness.skills import (
     GitStatusTool,
     GitToolError,
     InMemoryGitBackend,
+    SandboxGitBackend,
 )
 from harness.state import (
     AgentState,
@@ -163,6 +165,10 @@ from harness.tools import (
     IdempotencyStore,
     IdempotencyStoreError,
     InMemoryIdempotencyStore,
+    READ_FILE_NAME,
+    ReadFileTool,
+    SEARCH_FILES_NAME,
+    SearchFilesTool,
     Tool,
     ToolCall,
     ToolError,
@@ -171,6 +177,9 @@ from harness.tools import (
     ToolRegistry,
     ToolResult,
     ToolSchema,
+    WRITE_FILE_NAME,
+    WorkspaceToolError,
+    WriteFileTool,
     ShellTool,
     ShellToolError,
     calculate,
@@ -195,6 +204,7 @@ __all__ = [
     "CHECKPOINT_SCHEMA_VERSION",
     "CalculatorError",
     "CalculatorTool",
+    "CodingSkill",
     "CompositePolicyEngine",
     "CompositeTraceRecorder",
     "DeleteFileError",
@@ -244,6 +254,8 @@ __all__ = [
     "InMemoryIdempotencyStore",
     "InMemoryTaskStore",
     "InMemoryTraceRecorder",
+    "READ_FILE_NAME",
+    "ReadFileTool",
     "LogLevel",
     "LoggingHook",
     "LocalSandbox",
@@ -278,6 +290,9 @@ __all__ = [
     "SandboxProcessError",
     "SandboxRequest",
     "SandboxResult",
+    "SandboxGitBackend",
+    "SEARCH_FILES_NAME",
+    "SearchFilesTool",
     "SchedulerAlreadyRunningError",
     "SchedulerError",
     "SUMMARY_TRUNCATION_MARKER",
@@ -312,6 +327,9 @@ __all__ = [
     "ToolRegistry",
     "ToolResult",
     "ToolSchema",
+    "WRITE_FILE_NAME",
+    "WorkspaceToolError",
+    "WriteFileTool",
     "TrajectoryEvent",
     "TrajectoryEventKind",
     "IdempotencyConflictError",
