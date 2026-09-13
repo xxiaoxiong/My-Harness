@@ -115,6 +115,14 @@ def _checkpoint_to_payload(checkpoint: Checkpoint) -> dict[str, Any]:
             "created_at": state.created_at.isoformat(),
             "updated_at": state.updated_at.isoformat(),
             "final_answer": state.final_answer,
+            "pending_tool_call": (
+                {
+                    "name": state.pending_tool_call.name,
+                    "arguments": dict(state.pending_tool_call.arguments),
+                }
+                if state.pending_tool_call is not None
+                else None
+            ),
         },
         "trajectory": [
             {
@@ -183,6 +191,10 @@ def _checkpoint_from_payload(value: Any) -> Checkpoint:
             final_answer=_optional_string(
                 state_data.get("final_answer"), "state.final_answer"
             ),
+            pending_tool_call=_optional_tool_call(
+                state_data.get("pending_tool_call"),
+                "state.pending_tool_call",
+            ),
         )
         context_data = _object(root.get("context"), "context")
         context = CheckpointContext(
@@ -244,6 +256,12 @@ def _tool_call(value: Any, path: str) -> ToolCall:
         _string(item.get("name"), f"{path}.name"),
         _object(item.get("arguments"), f"{path}.arguments"),
     )
+
+
+def _optional_tool_call(value: Any, path: str) -> ToolCall | None:
+    if value is None:
+        return None
+    return _tool_call(value, path)
 
 
 def _tool_result(value: Any, path: str) -> ToolResult:

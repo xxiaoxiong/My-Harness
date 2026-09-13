@@ -1,4 +1,4 @@
-"""The system-of-record state for one HARN-05 Agent run."""
+"""The system-of-record state for one resumable Agent run."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ class AgentStatus(str, Enum):
     """Lifecycle status stored as part of Agent state."""
 
     RUNNING = "running"
+    WAITING_APPROVAL = "waiting_approval"
     FINISHED = "finished"
     MAX_STEPS_REACHED = "max_steps_reached"
 
@@ -37,6 +38,7 @@ class AgentState:
     updated_at: datetime
     trajectory: list[TrajectoryEvent] = field(default_factory=list)
     final_answer: str | None = None
+    pending_tool_call: ToolCall | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.task_id, str) or not self.task_id.strip():
@@ -53,6 +55,19 @@ class AgentState:
             raise ValueError("state timestamps must be timezone-aware")
         if self.updated_at < self.created_at:
             raise ValueError("updated_at must not be before created_at")
+        if self.pending_tool_call is not None and not isinstance(
+            self.pending_tool_call, ToolCall
+        ):
+            raise TypeError("pending_tool_call must be a ToolCall or null")
+        if self.status is AgentStatus.WAITING_APPROVAL:
+            if self.pending_tool_call is None:
+                raise ValueError("waiting state requires a pending_tool_call")
+            if not self.tool_calls or self.tool_calls[-1] != self.pending_tool_call:
+                raise ValueError("pending_tool_call must be the latest tool call")
+            if len(self.tool_calls) != len(self.tool_results) + 1:
+                raise ValueError("waiting state must have one unobserved tool call")
+        elif self.pending_tool_call is not None:
+            raise ValueError("only a waiting state may have a pending_tool_call")
 
         self.task_id = self.task_id.strip()
         self.goal = self.goal.strip()
@@ -143,6 +158,43 @@ class AgentState:
                 "error": result.error,
             },
         )
+
+    def interrupt_for_approval(self, call: ToolCall) -> None:
+        """Persist an unexecuted tool call as an explicit waiting state."""
+
+        self._require_running()
+        if not isinstance(call, ToolCall):
+            raise TypeError("call must be a ToolCall")
+        if not self.tool_calls or self.tool_calls[-1] != call:
+            raise ValueError("interrupt call must be the latest recorded tool call")
+        if len(self.tool_calls) != len(self.tool_results) + 1:
+            raise RuntimeError("interrupt requires exactly one unobserved tool call")
+
+        self.pending_tool_call = call
+        self.status = AgentStatus.WAITING_APPROVAL
+        self._append_event(
+            TrajectoryEventKind.INTERRUPT,
+            {"reason": "approval_required", "tool": call.name},
+        )
+
+    def resume_from_approval(self, *, approved: bool) -> ToolCall:
+        """Leave the waiting state and return the pending call for resolution."""
+
+        if not isinstance(approved, bool):
+            raise TypeError("approved must be a boolean")
+        if self.status is not AgentStatus.WAITING_APPROVAL:
+            raise RuntimeError(f"agent state is not waiting: {self.status.value}")
+        if self.pending_tool_call is None:
+            raise RuntimeError("waiting state has no pending tool call")
+
+        call = self.pending_tool_call
+        self.pending_tool_call = None
+        self.status = AgentStatus.RUNNING
+        self._append_event(
+            TrajectoryEventKind.RESUME,
+            {"approved": approved, "tool": call.name},
+        )
+        return call
 
     def finish(self, answer: str) -> None:
         """Store the final answer and transition to FINISHED."""

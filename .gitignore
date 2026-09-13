@@ -7,3 +7,4 @@ venv/
 dist/
 build/
 .harness-checkpoints/
+.harness-approval-demo/

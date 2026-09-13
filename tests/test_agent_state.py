@@ -71,6 +71,33 @@ class AgentStateTests(unittest.TestCase):
         self.assertTrue(first.task_id)
         self.assertNotEqual(first.task_id, second.task_id)
 
+    def test_interrupt_and_resume_make_pending_work_explicit(self) -> None:
+        state = AgentState.start(goal="Delete a file", messages=[])
+        call = ToolCall("delete_file", {"path": "temporary.txt"})
+        state.begin_model_step()
+        state.record_tool_call(call)
+
+        state.interrupt_for_approval(call)
+
+        self.assertEqual(state.status, AgentStatus.WAITING_APPROVAL)
+        self.assertEqual(state.pending_tool_call, call)
+        with self.assertRaisesRegex(RuntimeError, "not running"):
+            state.begin_model_step()
+
+        resumed_call = state.resume_from_approval(approved=True)
+
+        self.assertEqual(resumed_call, call)
+        self.assertEqual(state.status, AgentStatus.RUNNING)
+        self.assertIsNone(state.pending_tool_call)
+        self.assertEqual(
+            [event.kind for event in state.trajectory],
+            [
+                TrajectoryEventKind.TOOL_CALL,
+                TrajectoryEventKind.INTERRUPT,
+                TrajectoryEventKind.RESUME,
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

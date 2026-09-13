@@ -132,6 +132,7 @@ class JsonCheckpointStoreTests(unittest.IsolatedAsyncioTestCase):
                 },
             )
             self.assertEqual(payload["task_id"], "round-trip-task")
+            self.assertEqual(payload["schema_version"], 2)
             self.assertEqual(payload["status"], "finished")
             self.assertEqual(payload["step"], 5)
             self.assertEqual(len(payload["trajectory"]), 14)
@@ -227,6 +228,26 @@ class JsonCheckpointStoreTests(unittest.IsolatedAsyncioTestCase):
                 "does not match its filename",
             ):
                 store.load("different-task")
+
+    async def test_waiting_checkpoint_requires_a_pending_tool_call(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            store = JsonCheckpointStore(directory)
+            await _loop(StepAwareProvider(), store).run(
+                "Calculate four small expressions.",
+                task_id="invalid-waiting-task",
+            )
+            path = Path(directory) / "invalid-waiting-task.json"
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            payload["status"] = "waiting_approval"
+            payload["state"]["status"] = "waiting_approval"
+            payload["state"]["pending_tool_call"] = None
+            path.write_text(json.dumps(payload), encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                CheckpointCorruptError,
+                "requires a pending_tool_call",
+            ):
+                store.load("invalid-waiting-task")
 
 
 if __name__ == "__main__":

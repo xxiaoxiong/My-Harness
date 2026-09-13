@@ -8,6 +8,11 @@ from harness.tools.calculator import (
     calculate,
 )
 from harness.tools.executor import ToolExecutor
+from harness.tools.delete_file import (
+    DELETE_FILE_NAME,
+    DeleteFileError,
+    DeleteFileTool,
+)
 from harness.tools.registry import (
     DuplicateToolError,
     ToolNotFoundError,
@@ -19,6 +24,9 @@ __all__ = [
     "CALCULATOR_NAME",
     "CalculatorError",
     "CalculatorTool",
+    "DELETE_FILE_NAME",
+    "DeleteFileError",
+    "DeleteFileTool",
     "DuplicateToolError",
     "Tool",
     "ToolCall",

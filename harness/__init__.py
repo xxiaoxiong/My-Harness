@@ -1,6 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-08 stage.
+"""Educational Agent Harness package through the completed HARN-09 stage.
 
-The public API now persists recoverable Agent checkpoints between steps.
+The public API now interrupts risky tools and resumes after a durable decision.
 """
 
 from harness.core import (
@@ -55,8 +55,11 @@ from harness.runtime import (
 )
 from harness.tools import (
     CALCULATOR_NAME,
+    DELETE_FILE_NAME,
     CalculatorError,
     CalculatorTool,
+    DeleteFileError,
+    DeleteFileTool,
     DuplicateToolError,
     Tool,
     ToolCall,
@@ -77,9 +80,12 @@ __all__ = [
     "AgentState",
     "AgentStatus",
     "CALCULATOR_NAME",
+    "DELETE_FILE_NAME",
     "CHECKPOINT_SCHEMA_VERSION",
     "CalculatorError",
     "CalculatorTool",
+    "DeleteFileError",
+    "DeleteFileTool",
     "Checkpoint",
     "CheckpointContext",
     "CheckpointCorruptError",

@@ -2,7 +2,7 @@
 
 这是一个按照 `docs/agent_harness_progressive_learning_roadmap.md` 逐步构建 Agent Harness 的学习项目。
 
-当前进度：**HARN-08 — Checkpoint**。
+当前进度：**HARN-09 — Interrupt / Resume**。
 
 ## 按阶段独立学习
 
@@ -65,9 +65,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapsho
 - 保留完整 State、并显式记录摘要范围与信息损失；
 - 包含 task、status、step、State、Trajectory 与 Context metadata 的版本化 Checkpoint；
 - 每个完整 step 后原子保存 JSON 恢复点；
-- 通过 `task_id` 加载最后恢复点并继续执行。
+- 通过 `task_id` 加载最后恢复点并继续执行；
+- 危险 Tool 执行前主动返回 `WAITING_APPROVAL`；
+- 把 pending Tool Call 和 Interrupt 状态持久化；
+- 在新进程中根据批准或拒绝决定恢复 Agent。
 
-本阶段还没有主动 Interrupt 和等待批准状态；该能力会在下一阶段加入。
+本阶段还没有 Hook / Middleware 生命周期扩展点；该能力会在下一阶段加入。
 
 ## 运行 Demo
 
@@ -104,6 +107,8 @@ python -m examples.harn_06_context_engine
 python -m examples.harn_07_context_compaction
 python -m examples.harn_08_checkpoint_demo harn-08-demo
 python resume.py harn-08-demo
+python -m examples.harn_09_interrupt_resume start harn-09-demo
+python -m examples.harn_09_interrupt_resume resume harn-09-demo --approve
 ```
 
 可通过环境变量观察配置生效：
@@ -126,4 +131,4 @@ python -m examples.harn_00_project_skeleton
 python -m unittest discover -s tests -v
 ```
 
-各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-08 的持久化格式、原子写入与恢复语义见 [`docs/stage_notes/HARN-08.md`](docs/stage_notes/HARN-08.md)。
+各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-09 的主动暂停、等待态不变量与跨进程恢复见 [`docs/stage_notes/HARN-09.md`](docs/stage_notes/HARN-09.md)。

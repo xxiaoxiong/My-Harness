@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -44,6 +45,10 @@ class ToolAgentRunResult:
     def last_tool_result(self) -> ToolResult | None:
         return self.state.tool_results[-1] if self.state.tool_results else None
 
+    @property
+    def pending_tool_call(self) -> ToolCall | None:
+        return self.state.pending_tool_call
+
 
 @dataclass(frozen=True, slots=True)
 class _FinalAnswer:
@@ -71,6 +76,7 @@ class ToolAgentLoop:
         tool_executor: ToolExecutor,
         context_builder: ContextBuilder,
         checkpoint_store: CheckpointStore | None = None,
+        approval_required_tools: Collection[str] = (),
     ) -> None:
         if not isinstance(model, str):
             raise TypeError("model must be a string")
@@ -89,6 +95,23 @@ class ToolAgentLoop:
             checkpoint_store, CheckpointStore
         ):
             raise TypeError("checkpoint_store must be a CheckpointStore or null")
+        if isinstance(approval_required_tools, str) or not isinstance(
+            approval_required_tools, Collection
+        ):
+            raise TypeError("approval_required_tools must be a collection of names")
+        if not all(
+            isinstance(name, str) and name.strip()
+            for name in approval_required_tools
+        ):
+            raise ValueError("approval-required tool names must not be empty")
+
+        approval_names = frozenset(
+            name.strip() for name in approval_required_tools
+        )
+        if approval_names and checkpoint_store is None:
+            raise ValueError(
+                "approval-required tools need a checkpoint_store"
+            )
 
         self._provider = provider
         self._model = normalized_model
@@ -96,6 +119,7 @@ class ToolAgentLoop:
         self._tool_executor = tool_executor
         self._context_builder = context_builder
         self._checkpoint_store = checkpoint_store
+        self._approval_required_tools = approval_names
 
     async def run(
         self,
@@ -103,7 +127,7 @@ class ToolAgentLoop:
         *,
         task_id: str | None = None,
     ) -> ToolAgentRunResult:
-        """Run until the model answers or the model-call limit is reached."""
+        """Run until an answer, hard limit, or approval interrupt is reached."""
 
         if not isinstance(goal, str):
             raise TypeError("goal must be a string")
@@ -118,12 +142,23 @@ class ToolAgentLoop:
         )
         return await self._run_state(state)
 
-    async def resume(self, task_id: str) -> ToolAgentRunResult:
-        """Load the latest durable state for a task and continue it."""
+    async def resume(
+        self,
+        task_id: str,
+        *,
+        approve: bool | None = None,
+    ) -> ToolAgentRunResult:
+        """Load durable state and optionally resolve a pending approval."""
 
         if self._checkpoint_store is None:
             raise RuntimeError("resume requires a checkpoint_store")
+        if approve is not None and not isinstance(approve, bool):
+            raise TypeError("approve must be a boolean or null")
         checkpoint = self._checkpoint_store.load(task_id)
+        if checkpoint.state.status is AgentStatus.WAITING_APPROVAL:
+            return await self._resume_waiting(checkpoint, approve=approve)
+        if approve is not None:
+            raise ValueError("approval supplied for a task that is not waiting")
         if checkpoint.state.status is not AgentStatus.RUNNING:
             return ToolAgentRunResult(state=checkpoint.state)
         if checkpoint.state.current_step >= self._max_steps:
@@ -161,6 +196,11 @@ class ToolAgentLoop:
                 return ToolAgentRunResult(state=state)
 
             state.record_tool_call(action)
+            if action.name in self._approval_required_tools:
+                state.interrupt_for_approval(action)
+                self._save_checkpoint(state, context)
+                return ToolAgentRunResult(state=state)
+
             tool_result = await self._tool_executor.execute(action)
             state.record_tool_result(tool_result)
             state.append_message(
@@ -175,6 +215,35 @@ class ToolAgentLoop:
 
         raise RuntimeError("agent loop exited without a terminal state")
 
+    async def _resume_waiting(
+        self,
+        checkpoint: Checkpoint,
+        *,
+        approve: bool | None,
+    ) -> ToolAgentRunResult:
+        state = checkpoint.state
+        if approve is None:
+            return ToolAgentRunResult(state=state)
+
+        call = state.resume_from_approval(approved=approve)
+        if approve:
+            tool_result = await self._tool_executor.execute(call)
+        else:
+            tool_result = ToolResult(
+                name=call.name,
+                arguments=call.arguments,
+                error="tool call rejected by user",
+            )
+        state.record_tool_result(tool_result)
+        state.append_message(self._context_builder.tool_result_message(tool_result))
+
+        if state.current_step >= self._max_steps:
+            state.reach_max_steps()
+        self._save_checkpoint_with_context(state, checkpoint)
+        if state.status is AgentStatus.MAX_STEPS_REACHED:
+            return ToolAgentRunResult(state=state)
+        return await self._run_state(state)
+
     def _save_checkpoint(
         self,
         state: AgentState,
@@ -182,6 +251,20 @@ class ToolAgentLoop:
     ) -> None:
         if self._checkpoint_store is not None:
             self._checkpoint_store.save(Checkpoint.capture(state, context))
+
+    def _save_checkpoint_with_context(
+        self,
+        state: AgentState,
+        previous: Checkpoint,
+    ) -> None:
+        if self._checkpoint_store is not None:
+            self._checkpoint_store.save(
+                Checkpoint(
+                    state=state,
+                    context=previous.context,
+                    saved_at=datetime.now(UTC),
+                )
+            )
 
 
 def _parse_action(output: str) -> ToolCall | _FinalAnswer:

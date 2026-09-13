@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from harness.context import ContextBuildResult
 from harness.state import AgentState, AgentStatus
 
-CHECKPOINT_SCHEMA_VERSION = 1
+CHECKPOINT_SCHEMA_VERSION = 2
 
 
 class CheckpointError(RuntimeError):
