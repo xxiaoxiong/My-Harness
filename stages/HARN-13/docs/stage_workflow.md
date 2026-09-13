@@ -77,4 +77,3 @@ stages/HARN-XX/
 | `stages/HARN-10/` | `04944af` | HARN-10 完成状态 |
 | `stages/HARN-11/` | `d4909a9` | HARN-11 完成状态 |
 | `stages/HARN-12/` | `8339aef` | HARN-12 完成状态 |
-| `stages/HARN-13/` | `ceae933` | HARN-13 完成状态 |
