@@ -1,6 +1,6 @@
-"""Educational Agent Harness package through the completed HARN-16 stage.
+"""Educational Agent Harness package through the completed HARN-17 stage.
 
-The Task Runtime now schedules and retries work with bounded idempotency.
+Structured traces now explain Task, Agent, Model, and Tool behavior.
 """
 
 from harness.core import (
@@ -56,6 +56,22 @@ from harness.model import (
     OpenAICompatibleProvider,
     TokenUsage,
 )
+from harness.observability import (
+    CompositeTraceRecorder,
+    FailureLayer,
+    InMemoryTraceRecorder,
+    StructuredLogTraceRecorder,
+    TraceEmitter,
+    TraceEvent,
+    TraceEventKind,
+    TraceIdentity,
+    TraceRecorder,
+    TracingHook,
+    TracingRetryObserver,
+    TracingTaskStore,
+    classify_failure,
+    format_trace_tree,
+)
 from harness.policy import (
     AllowAllPolicyEngine,
     CompositePolicyEngine,
@@ -110,6 +126,8 @@ from harness.runtime import (
     JsonCheckpointStore,
     RetryPolicy,
     RetryPredicate,
+    RetryNotification,
+    RetryObserver,
     SchedulerAlreadyRunningError,
     SchedulerError,
     TaskNotFoundError,
@@ -178,6 +196,7 @@ __all__ = [
     "CalculatorError",
     "CalculatorTool",
     "CompositePolicyEngine",
+    "CompositeTraceRecorder",
     "DeleteFileError",
     "DeleteFileTool",
     "Checkpoint",
@@ -194,6 +213,7 @@ __all__ = [
     "DuplicatePromptFragmentError",
     "DuplicateTaskError",
     "Environment",
+    "FailureLayer",
     "HarnessConfig",
     "Harness",
     "HarnessSealedError",
@@ -223,6 +243,7 @@ __all__ = [
     "InMemoryGitBackend",
     "InMemoryIdempotencyStore",
     "InMemoryTaskStore",
+    "InMemoryTraceRecorder",
     "LogLevel",
     "LoggingHook",
     "LocalSandbox",
@@ -248,6 +269,8 @@ __all__ = [
     "PromptFragment",
     "RetryPolicy",
     "RetryPredicate",
+    "RetryNotification",
+    "RetryObserver",
     "Sandbox",
     "SandboxBoundaryError",
     "SandboxError",
@@ -260,6 +283,7 @@ __all__ = [
     "SUMMARY_TRUNCATION_MARKER",
     "SimpleHistorySummarizer",
     "StaticPolicyEngine",
+    "StructuredLogTraceRecorder",
     "TaskNotFoundError",
     "TaskScheduler",
     "TaskStatus",
@@ -270,6 +294,14 @@ __all__ = [
     "ShellTool",
     "ShellToolError",
     "TokenUsage",
+    "TraceEmitter",
+    "TraceEvent",
+    "TraceEventKind",
+    "TraceIdentity",
+    "TraceRecorder",
+    "TracingHook",
+    "TracingRetryObserver",
+    "TracingTaskStore",
     "Tool",
     "ToolAgentLoop",
     "ToolAgentRunResult",
@@ -287,8 +319,10 @@ __all__ = [
     "IdempotencyStore",
     "IdempotencyStoreError",
     "calculate",
+    "classify_failure",
     "configure_logging",
     "get_logger",
     "load_config",
+    "format_trace_tree",
     "tool_call_idempotency_key",
 ]

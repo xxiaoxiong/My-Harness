@@ -17,6 +17,26 @@ RetryPredicate = Callable[[Exception], bool]
 AsyncSleeper = Callable[[float], Awaitable[None]]
 
 
+@dataclass(frozen=True, slots=True)
+class RetryNotification:
+    """One retry decision exposed without coupling Runtime to telemetry."""
+
+    task: AgentTask
+    error: Exception
+    delay_seconds: float
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.task, AgentTask):
+            raise TypeError("task must be an AgentTask")
+        if not isinstance(self.error, Exception):
+            raise TypeError("error must be an Exception")
+        _nonnegative_finite(self.delay_seconds, "delay_seconds")
+        object.__setattr__(self, "delay_seconds", float(self.delay_seconds))
+
+
+RetryObserver = Callable[[RetryNotification], None]
+
+
 def _default_retryable(error: Exception) -> bool:
     return isinstance(error, (ModelProviderError, TimeoutError))
 
@@ -77,6 +97,7 @@ class TaskScheduler:
         retry_policy: RetryPolicy | None = None,
         task_timeout_seconds: float | None = None,
         sleeper: AsyncSleeper = asyncio.sleep,
+        retry_observer: RetryObserver | None = None,
     ) -> None:
         if not isinstance(store, TaskStore):
             raise TypeError("store must be a TaskStore")
@@ -94,6 +115,8 @@ class TaskScheduler:
             _positive_finite(task_timeout_seconds, "task_timeout_seconds")
         if not callable(sleeper):
             raise TypeError("sleeper must be callable")
+        if retry_observer is not None and not callable(retry_observer):
+            raise TypeError("retry_observer must be callable or null")
 
         self._store = store
         self._worker = worker
@@ -101,6 +124,7 @@ class TaskScheduler:
         self._retry_policy = retry_policy or RetryPolicy()
         self._task_timeout_seconds = task_timeout_seconds
         self._sleeper = sleeper
+        self._retry_observer = retry_observer
         self._queue: list[tuple[int, int, str]] = []
         self._queued: set[str] = set()
         self._running: dict[str, asyncio.Task[None]] = {}
@@ -125,6 +149,8 @@ class TaskScheduler:
         priority: int = 0,
         task_id: str | None = None,
         idempotency_key: str | None = None,
+        trace_id: str | None = None,
+        session_id: str | None = None,
     ) -> AgentTask:
         """Create and enqueue work, deduplicating an explicit submission key."""
 
@@ -133,6 +159,8 @@ class TaskScheduler:
         if isinstance(priority, bool) or not isinstance(priority, int):
             raise TypeError("priority must be an integer")
         normalized_goal = goal.strip()
+        normalized_trace_id = _optional_id(trace_id, "trace_id")
+        normalized_session_id = _optional_id(session_id, "session_id")
         if idempotency_key is not None:
             normalized_key = _submission_key(idempotency_key)
             existing = next(
@@ -148,6 +176,20 @@ class TaskScheduler:
                     raise TaskSubmissionConflictError(
                         "idempotency key was already used for different Task input"
                     )
+                if (
+                    normalized_trace_id is not None
+                    and existing.trace_id != normalized_trace_id
+                ):
+                    raise TaskSubmissionConflictError(
+                        "idempotency key was already used with a different trace_id"
+                    )
+                if (
+                    normalized_session_id is not None
+                    and existing.session_id != normalized_session_id
+                ):
+                    raise TaskSubmissionConflictError(
+                        "idempotency key was already used with a different session_id"
+                    )
                 if existing.status is TaskStatus.PENDING:
                     self.enqueue(existing.task_id)
                 return existing
@@ -157,6 +199,8 @@ class TaskScheduler:
             task_id=task_id,
             priority=priority,
             idempotency_key=idempotency_key,
+            trace_id=normalized_trace_id,
+            session_id=normalized_session_id,
         )
         self._store.create(task)
         self.enqueue(task.task_id)
@@ -256,9 +300,16 @@ class TaskScheduler:
                     ):
                         self._worker.fail(task_id, error)
                         return
-                    await self._sleeper(
-                        self._retry_policy.delay_after(task.attempts)
-                    )
+                    delay = self._retry_policy.delay_after(task.attempts)
+                    if self._retry_observer is not None:
+                        self._retry_observer(
+                            RetryNotification(
+                                task=task,
+                                error=error,
+                                delay_seconds=delay,
+                            )
+                        )
+                    await self._sleeper(delay)
         except asyncio.CancelledError:
             task = self._store.get(task_id)
             if not task.terminal:
@@ -286,6 +337,16 @@ def _submission_key(key: str) -> str:
     if not isinstance(key, str) or not key.strip():
         raise ValueError("idempotency_key must not be empty")
     return key.strip()
+
+
+def _optional_id(value: str | None, name: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TypeError(f"{name} must be a string or null")
+    if not value.strip():
+        raise ValueError(f"{name} must not be empty")
+    return value.strip()
 
 
 def _positive_finite(value: float, name: str) -> None:

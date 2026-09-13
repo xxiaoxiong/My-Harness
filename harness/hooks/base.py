@@ -48,6 +48,12 @@ class Hook:
     async def after_model_call(self, context: HookContext) -> None:
         pass
 
+    async def on_tool_call(self, context: HookContext) -> None:
+        """Observe model intent before Policy decides whether to execute it."""
+
+    async def on_tool_result(self, context: HookContext) -> None:
+        """Observe every result, including denied or rejected Tool calls."""
+
     async def before_tool_call(self, context: HookContext) -> None:
         pass
 

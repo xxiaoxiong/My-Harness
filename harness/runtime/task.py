@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from enum import Enum, unique
 from uuid import uuid4
@@ -47,6 +47,8 @@ class AgentTask:
     status: TaskStatus
     created_at: datetime
     updated_at: datetime
+    trace_id: str = field(default_factory=lambda: uuid4().hex)
+    session_id: str = field(default_factory=lambda: uuid4().hex)
     priority: int = 0
     attempts: int = 0
     idempotency_key: str | None = None
@@ -64,6 +66,10 @@ class AgentTask:
             raise ValueError("task timestamps must be timezone-aware")
         if self.updated_at < self.created_at:
             raise ValueError("task updated_at must not be before created_at")
+        if not isinstance(self.trace_id, str) or not self.trace_id.strip():
+            raise ValueError("task trace_id must not be empty")
+        if not isinstance(self.session_id, str) or not self.session_id.strip():
+            raise ValueError("task session_id must not be empty")
         if isinstance(self.priority, bool) or not isinstance(self.priority, int):
             raise TypeError("task priority must be an integer")
         if isinstance(self.attempts, bool) or not isinstance(self.attempts, int):
@@ -98,6 +104,8 @@ class AgentTask:
 
         object.__setattr__(self, "task_id", self.task_id.strip())
         object.__setattr__(self, "goal", self.goal.strip())
+        object.__setattr__(self, "trace_id", self.trace_id.strip())
+        object.__setattr__(self, "session_id", self.session_id.strip())
         if self.idempotency_key is not None:
             object.__setattr__(
                 self,
@@ -117,6 +125,8 @@ class AgentTask:
         task_id: str | None = None,
         priority: int = 0,
         idempotency_key: str | None = None,
+        trace_id: str | None = None,
+        session_id: str | None = None,
     ) -> AgentTask:
         now = datetime.now(UTC)
         return cls(
@@ -125,6 +135,8 @@ class AgentTask:
             status=TaskStatus.PENDING,
             created_at=now,
             updated_at=now,
+            trace_id=trace_id if trace_id is not None else uuid4().hex,
+            session_id=session_id if session_id is not None else uuid4().hex,
             priority=priority,
             idempotency_key=idempotency_key,
         )

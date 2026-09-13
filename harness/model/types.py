@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, unique
+from math import isfinite
 
 
 @unique
@@ -80,3 +81,35 @@ class ModelResponse:
     finish_reason: str | None
     usage: TokenUsage | None
     latency_ms: float
+    ttft_ms: float | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.response_id, str) or not self.response_id.strip():
+            raise ValueError("response_id must not be empty")
+        if not isinstance(self.model, str) or not self.model.strip():
+            raise ValueError("response model must not be empty")
+        if not isinstance(self.message, ModelMessage):
+            raise TypeError("response message must be a ModelMessage")
+        if self.finish_reason is not None and not isinstance(
+            self.finish_reason,
+            str,
+        ):
+            raise TypeError("finish_reason must be a string or null")
+        if self.usage is not None and not isinstance(self.usage, TokenUsage):
+            raise TypeError("usage must be TokenUsage or null")
+        _nonnegative_duration(self.latency_ms, "latency_ms")
+        if self.ttft_ms is not None:
+            _nonnegative_duration(self.ttft_ms, "ttft_ms")
+
+        object.__setattr__(self, "response_id", self.response_id.strip())
+        object.__setattr__(self, "model", self.model.strip())
+        object.__setattr__(self, "latency_ms", float(self.latency_ms))
+        if self.ttft_ms is not None:
+            object.__setattr__(self, "ttft_ms", float(self.ttft_ms))
+
+
+def _nonnegative_duration(value: float, name: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"{name} must be a number")
+    if value < 0 or not isfinite(value):
+        raise ValueError(f"{name} must be nonnegative and finite")

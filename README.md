@@ -2,7 +2,7 @@
 
 这是一个按照 `docs/agent_harness_progressive_learning_roadmap.md` 逐步构建 Agent Harness 的学习项目。
 
-当前进度：**HARN-16 — Scheduler + Reliability**。
+当前进度：**HARN-17 — Observability**。
 
 ## 按阶段独立学习
 
@@ -27,22 +27,23 @@
 | HARN-14 | [`stages/HARN-14/`](stages/HARN-14/) | MCP Client Adapter 与本地/远端 Tool 统一执行 |
 | HARN-15 | [`stages/HARN-15/`](stages/HARN-15/) | AgentTask、TaskStore 与独立 AgentWorker |
 | HARN-16 | [`stages/HARN-16/`](stages/HARN-16/) | 优先级调度、并发、重试、取消与副作用幂等 |
+| HARN-17 | [`stages/HARN-17/`](stages/HARN-17/) | 结构化 Trace、Task 事件树、指标与失败归因 |
 
-例如，单独学习 HARN-16 时：
+例如，单独学习 HARN-17 时：
 
 ```powershell
-cd stages/HARN-16
+cd stages/HARN-17
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e .
 python -m unittest discover -s tests -v
-python -m examples.harn_16_scheduler_reliability
+python -m examples.harn_17_observability
 ```
 
 下一阶段将在根目录基于当前版本做最小演进；完成并验证、提交根目录代码后，运行以下命令生成新快照：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapshot.ps1 HARN-17
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapshot.ps1 HARN-18
 ```
 
 完整约定见 [`docs/stage_workflow.md`](docs/stage_workflow.md)。
@@ -102,6 +103,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create_stage_snapsho
 - queued/running/waiting/suspended Task cancellation；
 - Client 提交幂等与 Tool 结果幂等缓存；
 - 临时模型失败、Tool timeout、Checkpoint 前崩溃和重复 Tool Call 演练。
+- 每个 Task 的 `task_id`、`trace_id` 与 `session_id` 关联标识；
+- Agent Step、Model、Tool、Token、TTFT、Latency、Retry、Context、Error 和 State Transition 结构化事件；
+- `Task → Step → Model + Tool` Trace 树、JSON 日志 Recorder 与七层失败归因。
 
 `LocalSandbox` 是受控的本机进程边界，不是容器或文件系统 jail；Docker 级隔离尚未实现。
 
@@ -149,6 +153,7 @@ python -m examples.harn_13_sandbox
 python -m examples.harn_14_mcp_adapter
 python -m examples.harn_15_task_runtime
 python -m examples.harn_16_scheduler_reliability
+python -m examples.harn_17_observability
 ```
 
 可通过环境变量观察配置生效：
@@ -171,4 +176,4 @@ python -m examples.harn_00_project_skeleton
 python -m unittest discover -s tests -v
 ```
 
-各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-16 的调度、重试/恢复/继续区别和副作用幂等见 [`docs/stage_notes/HARN-16.md`](docs/stage_notes/HARN-16.md)。
+各阶段的架构说明见 `docs/stage_notes/`，其中 HARN-17 的结构化 Trace、事件树和失败归因见 [`docs/stage_notes/HARN-17.md`](docs/stage_notes/HARN-17.md)。

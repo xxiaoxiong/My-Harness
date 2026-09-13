@@ -42,6 +42,12 @@ class HookManager:
     async def after_model_call(self, context: HookContext) -> None:
         await self._dispatch("after_model_call", context)
 
+    async def on_tool_call(self, context: HookContext) -> None:
+        await self._dispatch("on_tool_call", context)
+
+    async def on_tool_result(self, context: HookContext) -> None:
+        await self._dispatch("on_tool_result", context)
+
     async def before_tool_call(self, context: HookContext) -> None:
         await self._dispatch("before_tool_call", context)
 

@@ -237,6 +237,14 @@ class ToolAgentLoop:
 
                 tool_call = action
                 state.record_tool_call(tool_call)
+                phase = "on_tool_call"
+                await self._hooks.on_tool_call(
+                    self._hook_context(
+                        state,
+                        phase=phase,
+                        tool_call=tool_call,
+                    )
+                )
                 phase = "policy_decision"
                 permission = await self._policy.decide(
                     PermissionRequest(
@@ -299,6 +307,15 @@ class ToolAgentLoop:
                             tool_result=tool_result,
                         )
                     )
+                phase = "on_tool_result"
+                await self._hooks.on_tool_result(
+                    self._hook_context(
+                        state,
+                        phase=phase,
+                        tool_call=tool_call,
+                        tool_result=tool_result,
+                    )
+                )
                 phase = "record_tool_result"
                 state.record_tool_result(tool_result)
                 state.append_message(
@@ -379,6 +396,15 @@ class ToolAgentLoop:
                     arguments=call.arguments,
                     error="tool call rejected by user",
                 )
+            phase = "on_tool_result"
+            await self._hooks.on_tool_result(
+                self._hook_context(
+                    state,
+                    phase=phase,
+                    tool_call=call,
+                    tool_result=tool_result,
+                )
+            )
             phase = "record_tool_result"
             state.record_tool_result(tool_result)
             state.append_message(
